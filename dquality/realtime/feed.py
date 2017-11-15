@@ -71,6 +71,7 @@ from multiprocessing import Queue
 import numpy as np
 import dquality.realtime.adapter as adapter
 import sys
+import time
 if sys.version[0] == '2':
     import Queue as tqueue
 else:
@@ -345,9 +346,7 @@ class Feed:
         -------
         None
         """
-        import os
-        import time
-        print 'feed process', os.getpid()
+
         acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector, detector_basic, detector_image)
         self.no_frames = no_frames
         # if sequence is None:
