@@ -132,7 +132,6 @@ class Feedback:
         -------
         none
         """
-        print 'in quality feedback proc', os.getpid()
         if const.FEEDBACK_PV in self.feedback_type:
             server = drv.FbServer()
             driver = server.init_driver(self.detector, self.feedback_pvs)
