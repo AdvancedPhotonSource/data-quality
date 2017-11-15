@@ -345,6 +345,9 @@ class Feed:
         -------
         None
         """
+        import os
+        import time
+        print 'feed process', os.getpid()
         acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector, detector_basic, detector_image)
         self.no_frames = no_frames
         # if sequence is None:
@@ -364,6 +367,8 @@ class Feed:
             if ack == 1:
                 test = False
                 self.start_processes(counter_pv, data_pv, frame_type_pv, logger, *args)
+            else:
+                time.sleep(.005)
 
         return caget(acquire_pv)
 

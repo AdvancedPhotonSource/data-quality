@@ -217,6 +217,8 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
     -------
     None
     """
+    import os
+    print 'in handler process', os.getpid()
     consumers_q = None
     waiting_q = None
     if consumers is not None:

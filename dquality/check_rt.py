@@ -83,7 +83,8 @@ def realtime(conf, report_file = None, sequence = None):
 
     """
 
-    bad_indexes = real.verify(conf, report_file, sequence)
+    rt = real.RT()
+    bad_indexes = rt.verify(conf, report_file, sequence)
     print (json.dumps(bad_indexes))
     return bad_indexes
 

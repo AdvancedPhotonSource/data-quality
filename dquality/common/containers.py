@@ -2,6 +2,7 @@ from multiprocessing import Lock
 import dquality.common.constants as const
 from multiprocessing import Process
 import importlib
+import os
 from os import path
 import sys
 import dquality.realtime.pv_feedback_driver as drv
@@ -131,6 +132,7 @@ class Feedback:
         -------
         none
         """
+        print 'in quality feedback proc', os.getpid()
         if const.FEEDBACK_PV in self.feedback_type:
             server = drv.FbServer()
             driver = server.init_driver(self.detector, self.feedback_pvs)
@@ -139,21 +141,20 @@ class Feedback:
 
         evaluating = True
         while evaluating:
-            while not feedbackq.empty():
-                try:
-                    result = feedbackq.get_nowait()
-                    if result == const.DATA_STATUS_END:
-                        evaluating = False
-                    else:
-                        if const.FEEDBACK_CONSOLE in self.feedback_type:
-                            print ('failed frame '+str(result.index)+ ' result of '+const.to_string(result.quality_id)+ ' is '+ str(result.res))
-                        if const.FEEDBACK_LOG in self.feedback_type:
-                            self.logger.info('failed frame '+str(result.index)+ ' result of '+const.to_string(result.quality_id)+ ' is '+ str(result.res))
-                        if const.FEEDBACK_PV in self.feedback_type:
-                            quality_check = const.to_string(result.quality_id)
-                            self.write_to_pv(result.type + '_' + quality_check, result.index)
-                except:
-                    pass
+            result = feedbackq.get()
+
+            if result == const.DATA_STATUS_END:
+                evaluating = False
+            else:
+                if const.FEEDBACK_CONSOLE in self.feedback_type:
+                    print ('failed frame ' + str(result.index) + ' result of ' + const.to_string(
+                        result.quality_id) + ' is ' + str(result.res))
+                if const.FEEDBACK_LOG in self.feedback_type:
+                    self.logger.info('failed frame ' + str(result.index) + ' result of ' + const.to_string(
+                        result.quality_id) + ' is ' + str(result.res))
+                if const.FEEDBACK_PV in self.feedback_type:
+                    quality_check = const.to_string(result.quality_id)
+                    self.write_to_pv(result.type + '_' + quality_check, result.index)
 
 
 class Aggregate:
