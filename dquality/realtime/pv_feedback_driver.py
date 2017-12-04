@@ -146,7 +146,6 @@ class FbServer:
                                 'hihi' : 1, }
             counters[pv] = 0
 
-        self.server = SimpleServer()
         self.server.createPV(prefix, pvdb)
 
         driver = FbDriver(counters)
