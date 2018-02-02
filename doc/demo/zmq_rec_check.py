@@ -46,53 +46,36 @@
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
 """
-This module contains command line interface to data-quality. 
-To use Please make sure the installation :ref:`pre-requisite-reference-label` are met.
+Please make sure the installation :ref:`pre-requisite-reference-label` are met.
+
+This example takes one mandatory parameter:
+instrument: a string defining the detector that will be used. It is assumed that a subdirectory with the name of
+'instrument' exists in the ~/.dquality directory, and that the subdirectory contains configuration file named
+dqconfig.init.
+
+This script calls zmq_receiver verifier.
 
 """
-
-import json
-import dquality.realtime.real_time as real
 import dquality.realtime.zmq_receiver as rec
+import sys
+import os
+import argparse
+from os.path import expanduser
+
+def main(arg):
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("instrument", help="instrument name, name should have a matching directory in the .dquality folder")
+
+    args = parser.parse_args()
+    instrument = args.instrument
+
+    home = expanduser("~")
+    conf = os.path.join(home, ".dquality", instrument)
+
+    rec.verify(conf)
 
 
-__author__ = "Barbara Frosik"
-__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
-__docformat__ = 'restructuredtext en'
-__all__ = ['realtime']
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
-
-def realtime(conf, report_file = None, sequence = None):
-    """
-    Real time verifier.
-
-    Parameters
-    ----------
-    conf : str
-        configuration file name, including path
-
-    report_file : file
-        a file where the report will be written, or None, if written to a console
-
-    sequence : list or int
-        if int, the number is used to set number of frames to process,
-        if list, take the number of frames from the list, and verify the sequence of data is correct during
-        processing
-
-    Returns
-    -------
-    boolean
-
-    """
-
-    rt = real.RT()
-    bad_indexes = rt.verify(conf, report_file, sequence)
-    print (json.dumps(bad_indexes))
-    return bad_indexes
-
-
-def run_recev(config):
-    rec.verify(config)
-
-# if __name__ == "__main__":
-#     run_recev('test/dqconfig.ini')
