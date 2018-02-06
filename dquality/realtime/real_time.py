@@ -73,6 +73,14 @@ import dquality.realtime.adapter as adapter
 from dquality.realtime.feed_decorator import FeedDecorator
 
 
+__author__ = "Barbara Frosik"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['init',
+           'RT.verify',
+           'RT.finish']
+
+
 def init(config):
     """
     This function initializes variables according to configuration.
@@ -140,12 +148,10 @@ def init(config):
     except KeyError:
         report_type = const.REPORT_FULL
 
-    consumersfile = utils.get_file(conf, 'consumers', logger, False)
-    if consumersfile is None:
+    try:
+        consumers = conf['zmq_snd_port']
+    except KeyError:
         consumers = None
-    else:
-        with open(consumersfile) as consumers_file:
-            consumers = json.loads(consumers_file.read())
 
     return logger, limits, quality_checks, feedback, report_type, consumers
 

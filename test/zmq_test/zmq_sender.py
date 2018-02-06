@@ -1,7 +1,7 @@
 import zmq
-import dquality.common.utilities as utils
 import dquality.common.constants as const
 
+#this file is for testing, imitates BlueSky
 
 class zmq_sen():
     def __init__(self, port=None):
@@ -30,10 +30,10 @@ def receive_send_zmq(dataq, zmq_rcv_port):
                     key="image",
                     dtype=str(slice.dtype),
                     shape=slice.shape,
-                    # image_number=image_number,
+                    image_number=0,
                     # image_timestamp=image_time,
                     # sending_timestamp=time.time(),
-                    # rotation=_cache_["rotation"],
+                    rotation="5",
                     # rotation_timestamp=rotation_time,
                     document="... see next message ...",
 

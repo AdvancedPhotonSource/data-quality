@@ -73,6 +73,15 @@ import dquality.common.containers as containers
 import dquality.handler as handler
 
 
+__author__ = "Barbara Frosik"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['zmq_rec.zmq_rec',
+           'zmq_rec.destroy',
+           'init',
+           'receive_zmq_send']
+
+
 class zmq_rec():
     """
     This class represents ZeroMQ connection.
@@ -96,6 +105,7 @@ class zmq_rec():
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
         self.socket.connect("tcp://" + host +":%s" % port)
+
 
     def destroy(self):
         """
@@ -189,7 +199,7 @@ def init(config):
         zmq_rcv_port = conf['zmq_rcv_port']
     except:
         zmq_rcv_port = None
-        print ('configuration error: zmq_port not configured')
+        print ('configuration error: zmq_rcv_port not configured')
 
     try:
         detector = conf['detector']
@@ -197,12 +207,10 @@ def init(config):
         print ('configuration error: detector parameter not configured.')
         return None
 
-    consumersfile = utils.get_file(conf, 'consumers', logger, False)
-    if consumersfile is None:
+    try:
+        consumers = conf['zmq_snd_port']
+    except KeyError:
         consumers = None
-    else:
-        with open(consumersfile) as consumers_file:
-            consumers = json.loads(consumers_file.read())
 
     return logger, limits, quality_checks, feedback, report_type, consumers, zmq_host, zmq_rcv_port, detector
 
@@ -232,7 +240,6 @@ def receive_zmq_send(dataq, zmq_host, zmq_rcv_port):
     interrupted = False
     while not interrupted:
         msg = socket.recv_json()
-        print msg
         key = msg.get("key")
         if key == "end":
             data = containers.Data(const.DATA_STATUS_END)
@@ -240,22 +247,19 @@ def receive_zmq_send(dataq, zmq_host, zmq_rcv_port):
             interrupted = True
             conn.destroy()
         elif key == "image":
-            print('got msg')
             msg["receiving_timestamp"] = time.time()
             dtype = msg["dtype"]
             shape = msg["shape"]
             image_number = msg['image_number']
-            image_timestamp = msg['image_timestamp']
+            #image_timestamp = msg['image_timestamp']
             theta = msg['rotation']
 
             image = np.frombuffer(socket.recv(), dtype=dtype).reshape(shape)
 
             data = containers.Data(const.DATA_STATUS_DATA, image, 'data')
             data.theta = theta
-            data.inx = image_number
+            data.image_number = image_number
             dataq.put(data)
-
-    print("Connection ended")
 
 
 def verify(config):
@@ -290,5 +294,3 @@ def verify(config):
     p.start()
 
     receive_zmq_send(dataq, zmq_host, zmq_rcv_port)
-
-

@@ -57,7 +57,8 @@ and handles results of the checks.
 from multiprocessing import Queue, Process
 import dquality.common.constants as const
 import dquality.common.qualitychecks as calc
-from dquality.common.containers import Aggregate, Consumer_adapter
+from dquality.common.containers import Aggregate
+import dquality.realtime.zmq_sender as cons
 import sys
 from collections import deque
 if sys.version[0] == '2':
@@ -91,18 +92,15 @@ def init_consumers(consumers):
         a list of Queues that are used to deliver frames to consumers
     """
 
-    consumers_q = []
-    for consumer in consumers:
-        path = consumers[consumer][0]
-        args = consumers[consumer][1]
-        q = Queue()
-        consumers_q.append(q)
-        adapter = Consumer_adapter(path)
-        adapter.start_process(q, consumer, args)
-    return consumers_q
+    consumer_zmq = []
+    # connect to one consumer, may be extended to many later
+    zmq_sender = cons.zmq_sen(str(consumers))
+    consumer_zmq.append(zmq_sender)
+
+    return consumer_zmq
 
 
-def send_to_consumers(waiting_q, consumers_q, results):
+def send_to_consumers(waiting_q, consumer_zmq, results):
     """
     This function receives frames in a real time and delivers them to the consumer processes.
 
@@ -129,9 +127,9 @@ def send_to_consumers(waiting_q, consumers_q, results):
 
     def send_data(data):
         if data.status == const.DATA_STATUS_DATA:
-            data.failed = results.failed
-        for consumerq in consumers_q:
-            consumerq.put(data)
+            data.ver = not results.failed
+        for consumer in consumer_zmq:
+            consumer.send_to_zmq(data)
 
     search = True
     while search:
@@ -218,10 +216,10 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
     None
     """
 
-    consumers_q = None
+    consumer_zmq = None
     waiting_q = None
     if consumers is not None:
-        consumers_q = init_consumers(consumers)
+        consumer_zmq = init_consumers(consumers)
         waiting_q = deque()
 
     feedbackq = None
@@ -253,7 +251,7 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
                         feedbackq.put(const.DATA_STATUS_END)
                 if waiting_q is not None:
                     waiting_q.appendleft(data)
-                    send_to_consumers(waiting_q, consumers_q, results)
+                    send_to_consumers(waiting_q, consumer_zmq, results)
 
             elif data.status == const.DATA_STATUS_MISSING:
                 if waiting_q is not None:
@@ -280,7 +278,7 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
             aggregates[results.type].handle_results(results)
             num_processes -= 1
             if consumers is not None:
-                send_to_consumers(waiting_q, consumers_q, results)
+                send_to_consumers(waiting_q, consumer_zmq, results)
 
     if reportq is not None:
         results = {}
