@@ -64,7 +64,6 @@ def receive_zmq_send(zmq_host, zmq_rcv_port):
     while not interrupted:
         print ('waiting')
         msg = socket.recv_json()
-        print 'got msg', msg
         key = msg.get("key")
         if key == "end":
             print ('end of data, closing connection')
