@@ -384,5 +384,8 @@ class Feed:
 
     def finish(self):
         self.process_dataq.put(adapter.pack_data(None, "end"))
-        self.cntr_pv.clear_callbacks()
+        try:
+            self.cntr_pv.clear_callbacks()
+        except:
+            pass
 

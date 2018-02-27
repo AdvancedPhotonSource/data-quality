@@ -8,6 +8,15 @@ from PyQt4 import QtGui, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
 from multiprocessing import Process
 import dquality.realtime.real_time as real
+import zmq
+
+
+class zmq_sen():
+    def __init__(self, port=5511):
+        context = zmq.Context()
+        self.socket = context.socket(zmq.PAIR)
+        self.socket.bind("tcp://*:%s" % port)
+
 
 class Window(QtGui.QMainWindow):
     statusBarSignal = pyqtSignal(str, str)
@@ -21,7 +30,7 @@ class Window(QtGui.QMainWindow):
         self.show_limits()
         self.ui.det_name.setText(self.detector)
 
-        self.ui.det_name.returnPressed.connect(lambda: self.set_detector(self.detector))
+        self.ui.det_name.returnPressed.connect(lambda: self.set_detector())
 
         self.ui.frame_sum_ll.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sum_ll, 'sum','low_limit'))
         self.ui.frame_sum_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sum_hl, 'sum','high_limit'))
@@ -37,21 +46,27 @@ class Window(QtGui.QMainWindow):
 
         self.ui.statusBar.showMessage("verifier off")
         self.statusBarSignal.connect(self.onVerifierPVchange)
+        self.zmq_menu = zmq_sen()
 
 
     def start_verifier(self):
         print 'starting ver, conf', self.conf
-        self.p = Process(target=real.RT().verify, args=(self.conf,))
-        self.p.start()
-        # self.rt = real.RT()
-        # print 'config', self.conf
-        # self.rt.verify(self.conf)
+        socket = self.zmq_menu.socket
+        socket.send_json(
+            dict(
+                key="start_ver",
+                detector=self.detector
+            )
+        )
 
     def stop_verifier(self):
         print 'stopping ver'
-        self.p.terminate()
-
-        # self.rt.finish()
+        socket = self.zmq_menu.socket
+        socket.send_json(
+            dict(
+                key="stop_ver"
+            )
+        )
 
     def set_detector(self):
         self.detector = str(self.ui.det_name.text())

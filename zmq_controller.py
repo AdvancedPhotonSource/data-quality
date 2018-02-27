@@ -1,6 +1,8 @@
-import numpy as np
 import zmq
-import time
+import os
+from os.path import expanduser
+import dquality.realtime.real_time as real
+import threading
 
 
 class zmq_rec():
@@ -65,10 +67,21 @@ def receive(zmq_host, zmq_rcv_port):
         key = msg.get("key")
         if key == "start_ver":
             print ('starting ver')
-            interrupted = True
-            conn.destroy()
+            detector = msg["detector"]
+            home = expanduser("~")
+            conf = os.path.join(home, '.dquality', detector)
+            if os.path.isdir(conf):
+                config = os.path.join(conf, 'dqconfig.ini')
+            if not os.path.isfile(config):
+                print ('missing configuration file')
+            else:
+                conn.ver = real.RT()
+                th = threading.Thread(target=conn.ver.verify, args=(config,))
+                th.start()
+
         elif key == "stop_ver":
             print('stopping')
+            conn.ver.finish()
 
         else:
             pass
@@ -76,5 +89,5 @@ def receive(zmq_host, zmq_rcv_port):
     print("Connection ended")
 
 if __name__ == "__main__":
-    receive('localhost', 5577)
+    receive('localhost', 5511)
 
