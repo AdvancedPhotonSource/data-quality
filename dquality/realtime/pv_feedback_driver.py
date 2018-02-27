@@ -76,6 +76,19 @@ class FbDriver(Driver):
         self.counters = counters
 
 
+    def reset_counters(self):
+        self.setParam('ver', 0)
+        for pv in self.counters:
+            self.counters[pv] = 0
+            self.setParam(pv+'_ctr', self.counters[pv])
+        self.updatePVs()
+
+
+    def acq_stopped(self):
+        self.setParam('ver', -1)
+        self.updatePVs()
+
+
     def write(self, pv, index):
         """
         This function override write method from Driver.

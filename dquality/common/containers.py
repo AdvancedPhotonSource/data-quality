@@ -41,7 +41,7 @@ class Data:
     """
     This class is a container of data.
     """
-    def __init__(self, status, slice=None, type=None, acq_time = None):
+    def __init__(self, status, slice=None, type=None, acq_time=None, ack=None):
         self.status = status
         if status == const.DATA_STATUS_DATA:
             self.slice = slice
@@ -144,6 +144,10 @@ class Feedback:
 
             if result == const.DATA_STATUS_END:
                 evaluating = False
+            elif result == const.DATA_STATUS_ACK_OFF and const.FEEDBACK_PV in self.feedback_type:
+                driver.acq_stopped()
+            elif result == const.DATA_STATUS_ACK_ON:
+                driver.reset_counters()
             else:
                 if const.FEEDBACK_CONSOLE in self.feedback_type:
                     print ('failed frame ' + str(result.index) + ' result of ' + const.to_string(

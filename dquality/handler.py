@@ -259,7 +259,7 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
                     waiting_q.appendleft(data)
                 index += 1
 
-            else:
+            elif data.status == const.DATA_STATUS_DATA:
                 if waiting_q is not None:
                     data.index = index
                     waiting_q.appendleft(data)
@@ -269,6 +269,9 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
                 p.start()
                 num_processes += 1
                 index += 1
+
+            else:
+                feedbackq.put(data.status)
 
         except queue.Empty:
             pass

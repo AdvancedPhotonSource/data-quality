@@ -168,7 +168,11 @@ class Feed:
         frame_index = 0
         while not done:
             current_counter = self.thread_dataq.get()
-            if self.no_frames < 0 or current_counter < self.no_frames:
+            if current_counter == -1:
+                packed = adapter.pack_ack(caget(self.acquire_pv))
+                self.process_dataq.put(packed)
+                print 'counter', caget(self.acquire_pv)
+            elif self.no_frames < 0 or current_counter < self.no_frames:
                 try:
                     data = np.array(caget(data_pv))
                     data_type = types[caget(frame_type_pv)]
@@ -217,17 +221,20 @@ class Feed:
         -------
         None
         """
-    
-        current_ctr = kws['value']
-        #on first callback adjust the values
-        if self.ctr == 0:
-            self.ctr = current_ctr
-            if self.no_frames >= 0:
-                self.no_frames += current_ctr
+        if "Acquire" in pvname:
+            self.ctr = 0
+            current_ctr = -1
+        else:
+            current_ctr = kws['value']
+            #on first callback adjust the values
+            if self.ctr == 0:
+                self.ctr = current_ctr
+                if self.no_frames >= 0:
+                    self.no_frames += current_ctr
 
         self.thread_dataq.put(current_ctr)
-    
-    
+
+
     def start_processes(self, counter_pv, data_pv, frame_type_pv, logger, *args):
         """
         This function starts processes and callbacks.
@@ -263,7 +270,10 @@ class Feed:
         adapter.start_process(self.process_dataq, logger, *args)
         self.cntr_pv = PV(counter_pv)
         self.cntr_pv.add_callback(self.on_change, index = 1)
-    
+        if self.no_frames < 0:
+            self.ack = PV(self.acquire_pv)
+            self.ack.add_callback(self.on_change, index = 2)
+
         # self.exitq.get()
         # print 'got Exit in exitq stopping callback'
         # self.cntr.clear_callbacks()
@@ -347,7 +357,7 @@ class Feed:
         None
         """
 
-        acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector, detector_basic, detector_image)
+        self.acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector, detector_basic, detector_image)
         self.no_frames = no_frames
         # if sequence is None:
         #     self.no_frames = no_frames
@@ -362,14 +372,14 @@ class Feed:
         while test:
             self.sizex = caget (sizex_pv)
             self.sizey = caget (sizey_pv)
-            ack =  caget(acquire_pv)
+            ack =  caget(self.acquire_pv)
             if ack == 1:
                 test = False
                 self.start_processes(counter_pv, data_pv, frame_type_pv, logger, *args)
             else:
                 time.sleep(.005)
 
-        return caget(acquire_pv)
+        return caget(self.acquire_pv)
 
 
     def finish(self):
