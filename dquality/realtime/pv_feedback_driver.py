@@ -77,15 +77,9 @@ class FbDriver(Driver):
 
 
     def reset_counters(self):
-        self.setParam('ver', 0)
         for pv in self.counters:
             self.counters[pv] = 0
             self.setParam(pv+'_ctr', self.counters[pv])
-        self.updatePVs()
-
-
-    def acq_stopped(self):
-        self.setParam('ver', -1)
         self.updatePVs()
 
 
@@ -114,7 +108,6 @@ class FbDriver(Driver):
         self.counters[pv] += 1
         # this method is called on failed quality check, increase counter for this pv
         self.setParam(pv+'_ctr', self.counters[pv])
-        self.setParam('ver', 1)
         self.updatePVs()
         return status
 
@@ -162,10 +155,6 @@ class FbServer:
             pvdb[pv+'_ctr'] = { 'prec' : 0,
                                 'hihi' : 1, }
             counters[pv] = 0
-
-        # add one PV that will show failure in case any of the quality checks failed
-        pvdb['ver'.decode('utf-8')] = { 'prec' : 0,
-                                        'hihi': 1,}
 
         self.server.createPV(prefix, pvdb)
 

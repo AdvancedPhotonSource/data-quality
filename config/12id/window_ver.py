@@ -6,8 +6,6 @@ import json
 import epics
 from PyQt4 import QtGui, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
-from multiprocessing import Process
-import dquality.realtime.real_time as real
 import zmq
 
 
@@ -40,17 +38,17 @@ class Window(QtGui.QMainWindow):
         self.ui.rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.rate_hl, 'rate_sat','high_limit'))
 
         self.setEpicsQualityFeedbackUpdate()
+        self.verifier_on = 0
 
         self.ui.actionStart_verifier.triggered.connect(self.start_verifier)
         self.ui.actionStop_verifier.triggered.connect(self.stop_verifier)
 
-        self.ui.statusBar.showMessage("verifier off")
         self.statusBarSignal.connect(self.onVerifierPVchange)
         self.zmq_menu = zmq_sen()
+        self.ui.statusBar.showMessage("verifier off")
 
 
     def start_verifier(self):
-        print 'starting ver, conf', self.conf
         socket = self.zmq_menu.socket
         socket.send_json(
             dict(
@@ -58,15 +56,26 @@ class Window(QtGui.QMainWindow):
                 detector=self.detector
             )
         )
+        self.verifier_on = 1
+        self.ui.statusBar.setStyleSheet(
+            "QStatusBar{padding-left:8px;background:rgba(0,0,0,0);color:black;font-weight:bold;}")
+        msg = 'not acquireing'
+
+        self.ui.statusBar.showMessage(msg)
 
     def stop_verifier(self):
-        print 'stopping ver'
         socket = self.zmq_menu.socket
         socket.send_json(
             dict(
                 key="stop_ver"
             )
         )
+        self.verifier_on = 0
+        self.ui.statusBar.setStyleSheet(
+            "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
+        msg = 'verifier off'
+
+        self.ui.statusBar.showMessage(msg)
 
     def set_detector(self):
         self.detector = str(self.ui.det_name.text())
@@ -110,7 +119,7 @@ class Window(QtGui.QMainWindow):
     def setEpicsQualityFeedbackUpdate(self):
         try:
             self.ver = epics.PV(self.detector + ':ver', callback=self.epicsCallbackFunc)
-            print 'set callback', self.ver
+            self.acquire = epics.PV(self.detector + ':cam1:Acquire', callback=self.epicsCallbackFunc)
         except:
             self.ui.statusBar.showMessage('verifier off')
 
@@ -131,14 +140,16 @@ class Window(QtGui.QMainWindow):
                     self.ui.statusBar.setStyleSheet(
                         "QStatusBar{padding-left:8px;background:rgba(255,0,0,120);color:black;font-weight:bold;}")
                     msg = 'verification failed'
-                elif int(float(char_value)) is -1:
+                self.ui.statusBar.showMessage(msg)
+            elif "Acquire" in pvname:
+                print 'got acquire change, value', char_value
+                if self.verifier_on is 1 and int(float(char_value)) is 0:
                     self.ui.statusBar.setStyleSheet(
                         "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
                     msg = 'not acquireing'
-                self.ui.statusBar.showMessage(msg)
+                    self.ui.statusBar.showMessage(msg)
         else:
             self.ui.statusBar.showMessage("ver pv name not defined")
-
 
 
 if __name__ == "__main__":

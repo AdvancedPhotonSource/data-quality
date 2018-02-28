@@ -197,26 +197,6 @@ def pack_data(slice, type):
         return containers.Data(const.DATA_STATUS_END)
 
 
-def pack_ack(ack):
-    """
-    This function packs a single image data into a specific container.
-
-    Parameters
-    ----------
-    slice : nparray
-        image data
-
-    type : str
-       data type, as 'data', 'data_white', or 'data_dark'
-
-    """
-    if ack is 1:
-        return containers.Data(const.DATA_STATUS_ACK_ON)
-    else:
-        return containers.Data(const.DATA_STATUS_ACK_OFF)
-
-
-
 def pack_data_with_decor(slice, type, acq_time):
     """
     This function packs a single image data into a specific container.
