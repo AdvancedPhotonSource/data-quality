@@ -411,7 +411,7 @@ def run_quality_checks(data, index, resultsq, aggregate, limits, quality_checks)
     failed = False
     for qc in quality_checks:
         function = function_mapper[qc]
-        result = function(limits=limits, data=data, aggregate=aggregate, results_dir=results_dir)
+        result = function(limits=limits, data=data, aggregate=aggregate, results=results_dir)
 
         results_dir[qc] = result
         if result.error != 0:
