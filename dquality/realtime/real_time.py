@@ -136,7 +136,8 @@ def init(config):
 
     with open(qcfile) as qc_file:
         dict = json.loads(qc_file.read())
-    quality_checks = utils.get_quality_checks(dict)
+    #quality_checks = utils.get_quality_checks(dict)
+    quality_checks = dict
 
     try:
         feedback = conf['feedback_type']
@@ -184,9 +185,8 @@ class RT:
         """
         def get_decor(qc):
             decor = {}
-            qc = [6]
-            if const.QUALITYCHECK_RATE_SAT in qc:
-                decor[const.QUALITYCHECK_RATE_SAT] = detector + ":" + detector_basic +":AcquireTime"
+            if 'rate_sat' in qc['data']:
+                decor['rate_sat'] = detector + ":" + detector_basic +":AcquireTime"
             return decor
 
         logger, limits, quality_checks, feedback, report_type, consumers = init(config)

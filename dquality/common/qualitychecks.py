@@ -96,7 +96,7 @@ def find_result(res, quality_id, limits):
     return result
 
 
-def validate_mean_signal_intensity(data, limits):
+def mean(**kws):
     """
     This method validates mean value of the frame.
 
@@ -117,14 +117,16 @@ def validate_mean_signal_intensity(data, limits):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    data = kws['data']
 
     this_limits = limits['mean']
     res = np.mean(data.slice)
-    result = find_result(res, const.QUALITYCHECK_MEAN, this_limits)
+    result = find_result(res, 'mean', this_limits)
     return result
 
 
-def validate_signal_intensity_standard_deviation(data, limits):
+def st_dev(**kws):
     """
     This method validates standard deviation value of the frame.
 
@@ -145,14 +147,16 @@ def validate_signal_intensity_standard_deviation(data, limits):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    data = kws['data']
 
     this_limits = limits['std']
     res = np.std(data.slice)
-    result = find_result(res, const.QUALITYCHECK_STD, this_limits)
+    result = find_result(res, 'st_dev', this_limits)
     return result
 
 
-def validate_intensity_sum(data, limits):
+def sum(**kws):
     """
     This method validates a sum of all intensities value of the frame.
 
@@ -173,13 +177,16 @@ def validate_intensity_sum(data, limits):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    data = kws['data']
+
     this_limits = limits['sum']
     res = data.slice.sum()
-    result = find_result(res, const.QUALITYCHECK_SUM, this_limits)
+    result = find_result(res, 'sum', this_limits)
     return result
 
 
-def validate_cnt_rate_sat(data, limits):
+def rate_sat(**kws):
     """
     This method validates a sum of all intensities value of the frame.
 
@@ -200,14 +207,17 @@ def validate_cnt_rate_sat(data, limits):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    data = kws['data']
+
     this_limits = limits['rate_sat']
     acq_time = data.acq_time
     res = data.slice.sum()/acq_time
-    result = find_result(res, const.QUALITYCHECK_RATE_SAT, this_limits)
+    result = find_result(res, 'rate_sat', this_limits)
     return result
 
 
-def validate_frame_saturation(data, limits):
+def frame_sat(**kws):
     """
     This method validates saturation value of the frame.
 
@@ -228,14 +238,17 @@ def validate_frame_saturation(data, limits):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    data = kws['data']
+
     this_limits = limits['frame_sat']
     sat_high = (limits['sat'])['high_limit']
     res = (data.slice > sat_high).sum()
-    result = Result(res, const.QUALITYCHECK_FRAME_SAT, this_limits)
+    result = Result(res, 'frame_sat', this_limits)
     return result
 
 
-def validate_saturation(data, limits):
+def saturation(**kws):
     """
     This method validates saturation value of the frame.
 
@@ -256,13 +269,16 @@ def validate_saturation(data, limits):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    data = kws['data']
+
     sat_high = (limits['sat'])['high_limit']
     res = (data.slice > sat_high).sum()
-    result = Result(res, const.QUALITYCHECK_SAT, const.NO_ERROR)
+    result = Result(res, 'saturation', const.NO_ERROR)
     return result
 
 
-def validate_stat_mean(limits, aggregate, results):
+def stat_mean(**kws):
     """
     This is one of the statistical validation methods.
 
@@ -287,26 +303,30 @@ def validate_stat_mean(limits, aggregate, results):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    aggregate = kws['aggregate']
+    results = kws['results']
+
     this_limits = limits['stat_mean']
 
-    stat_data = aggregate.get_results(const.QUALITYCHECK_MEAN)
+    stat_data = aggregate.get_results('mean')
     length = len(stat_data)
     # calculate std od mean values in aggregate
     if length == 0:
-        return find_result(0, const.STAT_MEAN, this_limits)
+        return find_result(0, 'stat_mean', this_limits)
     elif length == 1:
         mean_mean = np.mean(stat_data)
     else:
         mean_mean = np.mean(stat_data[0:(length -1)])
 
-    result = results[const.QUALITYCHECK_MEAN]
+    result = results['mean']
     delta = result.res - mean_mean
 
-    result = find_result(delta, const.STAT_MEAN, this_limits)
+    result = find_result(delta, 'stat_mean', this_limits)
     return result
 
 
-def validate_accumulated_saturation(limits, aggregate, results):
+def acc_sat(**kws):
     """
     This is one of the statistical validation methods.
 
@@ -331,25 +351,29 @@ def validate_accumulated_saturation(limits, aggregate, results):
     result : Result
         a Result object
     """
+    limits = kws['limits']
+    aggregate = kws['aggregate']
+    results = kws['results']
+
     this_limits = limits['sat_points']
-    stat_data = aggregate.get_results(const.QUALITYCHECK_SAT)
+    stat_data = aggregate.get_results('saturation')
     # calculate total saturated points
-    result = results[const.QUALITYCHECK_SAT]
+    result = results['saturation']
     total = np.sum(stat_data) + result.res
 
-    result = find_result(total, const.ACC_SAT, this_limits)
+    result = find_result(total, 'acc_sat', this_limits)
     return result
 
 
 # maps the quality check ID to the function object
-function_mapper = {const.QUALITYCHECK_MEAN : validate_mean_signal_intensity,
-                   const.QUALITYCHECK_STD : validate_signal_intensity_standard_deviation,
-                   const.QUALITYCHECK_SAT : validate_saturation,
-                   const.QUALITYCHECK_FRAME_SAT : validate_frame_saturation,
-                   const.QUALITYCHECK_RATE_SAT: validate_cnt_rate_sat,
-                   const.QUALITYCHECK_SUM: validate_intensity_sum,
-                   const.STAT_MEAN : validate_stat_mean,
-                   const.ACC_SAT : validate_accumulated_saturation}
+function_mapper = {'mean' : mean,
+                   'st_dev' : st_dev,
+                   'saturation' : saturation,
+                   'frame_sat' : frame_sat,
+                   'rate_sat': rate_sat,
+                   'sum': sum,
+                   'stat_mean' : stat_mean,
+                   'acc_sat' : acc_sat}
 
 def run_quality_checks(data, index, resultsq, aggregate, limits, quality_checks):
     """
@@ -382,22 +406,31 @@ def run_quality_checks(data, index, resultsq, aggregate, limits, quality_checks)
     -------
     none
     """
-    quality_checks.sort()
+    #quality_checks.sort()
     results_dir = {}
     failed = False
-    for function_id in quality_checks:
-        function = function_mapper[function_id]
-        if function_id < const.STAT_START:
-            result = function(data, limits)
-            results_dir[function_id] = result
-            if result.error != 0:
-                failed = True
-        else:
-            if not failed:
-                result = function(limits, aggregate, results_dir)
-                results_dir[function_id] = result
-                if result.error != 0:
-                    failed = True
+    for qc in quality_checks:
+        function = function_mapper[qc]
+        result = function(limits=limits, data=data, aggregate=aggregate, results_dir=results_dir)
+
+        results_dir[qc] = result
+        if result.error != 0:
+            failed = True
+
+
+    # for qc in quality_checks:
+    #     function = function_mapper[qc]
+    #     if qc < const.STAT_START:
+    #         result = function(data, limits)
+    #         results_dir[qc] = result
+    #         if result.error != 0:
+    #             failed = True
+    #     else:
+    #         if not failed:
+    #             result = function(limits, aggregate, results_dir)
+    #             results_dir[qc] = result
+    #             if result.error != 0:
+    #                 failed = True
 
     results = Results(data.type, index, failed, results_dir)
     resultsq.put(results)

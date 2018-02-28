@@ -365,7 +365,7 @@ class Feed:
             else:
                 time.sleep(.005)
 
-        return caget(self.acquire_pv)
+        return caget(acquire_pv)
 
 
     def finish(self):

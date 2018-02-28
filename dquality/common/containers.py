@@ -146,14 +146,13 @@ class Feedback:
                 evaluating = False
             else:
                 if const.FEEDBACK_CONSOLE in self.feedback_type:
-                    print ('failed frame ' + str(result.index) + ' result of ' + const.to_string(
-                        result.quality_id) + ' is ' + str(result.res))
+                    print ('failed frame ' + str(result.index) + ' result of ' +
+                        result.quality_id + ' is ' + str(result.res))
                 if const.FEEDBACK_LOG in self.feedback_type:
-                    self.logger.info('failed frame ' + str(result.index) + ' result of ' + const.to_string(
-                        result.quality_id) + ' is ' + str(result.res))
+                    self.logger.info('failed frame ' + str(result.index) + ' result of ' +
+                        result.quality_id + ' is ' + str(result.res))
                 if const.FEEDBACK_PV in self.feedback_type:
-                    quality_check = const.to_string(result.quality_id)
-                    self.write_to_pv(result.type + '_' + quality_check, result.index)
+                    self.write_to_pv(result.type + '_' + result.quality_id, result.index)
 
 
 class Aggregate:

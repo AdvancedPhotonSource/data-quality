@@ -1,13 +1,12 @@
 from dquality.realtime.feed import Feed
 import dquality.realtime.adapter as adapter
-import dquality.common.constants as const
 from epics import caget
 
 class FeedDecorator(Feed):
     def __init__(self, decor):
         Feed.__init__(self)
         try:
-            self.acq_time_pv = decor[const.QUALITYCHECK_RATE_SAT]
+            self.acq_time_pv = decor['rate_sat']
         except:
             self.acq_time_pv = None
 
