@@ -12,7 +12,7 @@ import zmq
 default_det = "S12-PILATUS1"
 default_cntl_port = 5511
 default_cntl_host = 'localhost'
-ui = "testui.ui"
+ui = "verui.ui"
 
 
 class zmq_consumer():
@@ -69,8 +69,7 @@ class Window(QtGui.QMainWindow):
             )
         )
         self.verifier_on = 1
-        self.ui.statusBar.setStyleSheet(
-            "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
+        self.set_status_color('yellow')
         msg = 'not acquireing'
 
         self.ui.statusBar.showMessage(msg)
@@ -84,8 +83,7 @@ class Window(QtGui.QMainWindow):
             )
         )
         self.verifier_on = 0
-        self.ui.statusBar.setStyleSheet(
-            "QStatusBar{padding-left:8px;background:rgba(0,0,0,0);color:black;font-weight:bold;}")
+        self.set_status_color('none')
         msg = 'off'
 
         self.ui.statusBar.showMessage(msg)
@@ -160,8 +158,7 @@ class Window(QtGui.QMainWindow):
                 # The pv increments when a frame fails. Read the failed quality check result.
                 res_pv = str(pvname.replace('ctr', 'res'))
                 value = epics.caget(res_pv)
-                self.ui.statusBar.setStyleSheet(
-                    "QStatusBar{padding-left:8px;background:rgba(255,0,0,120);color:black;font-weight:bold;}")
+                self.set_status_color('red')
                 msg =  self.file_name + '_verification failed with value ' + str(value)
                 self.ui.statusBar.showMessage(msg)
                 list_item = self.get_list_item(res_pv, value)
@@ -177,8 +174,7 @@ class Window(QtGui.QMainWindow):
             elif "Acquire" in pvname:
                 if self.verifier_on is 1:
                     if int(float(char_value)) is 0:
-                        self.ui.statusBar.setStyleSheet(
-                            "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
+                        self.set_status_color('yellow')
                         msg = 'not acquireing'
                     else:
                         full_name = epics.caget(self.detector + ':cam1:FullFileName_RBV')
@@ -186,9 +182,8 @@ class Window(QtGui.QMainWindow):
                         ind = rev_full_name.find['/']
                         rev_name = rev_full_name[0:ind]
                         self.file_name = rev_name[::-1]
-                        #self.file_name = 'test_file_name'
-                        self.ui.statusBar.setStyleSheet(
-                            "QStatusBar{padding-left:8px;background:rgba(0,255,0,120);color:black;font-weight:bold;}")
+                        # self.file_name = 'test_file_name'
+                        self.set_status_color('green')
                         msg = self.file_name + ' verification pass'
 
                     self.ui.statusBar.showMessage(msg)
@@ -200,6 +195,20 @@ class Window(QtGui.QMainWindow):
         temp = str(name.replace('_res', ''))
         qc = temp.replace(self.detector+':data_', '')
         return self.file_name + ' failed ' + qc + ' with result ' + str(value)
+
+    def set_status_color(self, color):
+        if color is 'red':
+            self.ui.statusBar.setStyleSheet(
+                "QStatusBar{padding-left:8px;background:rgba(255,0,0,120);color:black;font-weight:bold;}")
+        elif color is 'green':
+            self.ui.statusBar.setStyleSheet(
+                "QStatusBar{padding-left:8px;background:rgba(0,255,0,120);color:black;font-weight:bold;}")
+        elif color is 'yellow':
+            self.ui.statusBar.setStyleSheet(
+                "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
+        elif color is 'none':
+            self.ui.statusBar.setStyleSheet(
+                "QStatusBar{padding-left:8px;background:rgba(0,0,0,0);color:black;font-weight:bold;}")
 
 
     def get_ver_params(self):
