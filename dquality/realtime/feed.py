@@ -54,11 +54,7 @@ plug in of area detector. The read of frame data from channel access happens on 
 The change is detected with a callback. The data type is determined from PV. The data and the type are passed
 (as object) to the consuming process.
 This module requires configuration file with the following parameters:
-'detector', a string defining the first prefix in area detector, it has to match the area detector configuration
-'detector_basic', a string defining the second prefix in area detector, defining the basic parameters, it has to
-match the area detector configuration
-'detector_image', a string defining the second prefix in area detector, defining the image parameters, it has to
-match the area detector configuration
+'detector', a string defining the first prefix in area detector
 'no_frames', number of frames that will be fed. If not given, the optional parameter 'sequence' to the feed_data
 method must not be None. It can be either int defining number of frames, or a list of touples, defining data types
 sequence. (i.e. [('data_dark', 4), ('data_white', 14), ('data', 614), ('data_dark', 619))
@@ -265,7 +261,7 @@ class Feed:
         self.cntr_pv.add_callback(self.on_change, index = 1)
 
 
-    def get_pvs(self, detector, detector_basic, detector_image):
+    def get_pvs(self, detector):
         """
         This function takes defined strings from configuration file and constructs PV variables that are accessed during
         processing.
@@ -274,14 +270,6 @@ class Feed:
         ----------
         detector : str
             a string defining the first prefix in area detector, it has to match the area detector configuration
-    
-        detector_basic : str
-            a string defining the second prefix in area detector, defining the basic parameters, it has to
-            match the area detector configuration
-    
-        detector_image : str
-            a string defining the second prefix in area detector, defining the image parameters, it has to
-            match the area detector configuration
     
         Returns
         -------
@@ -305,27 +293,29 @@ class Feed:
 
         """
     
-        acquire_pv = detector + ':' + detector_basic + ':' + 'Acquire'
-        counter_pv = detector + ':' + detector_basic + ':' + 'NumImagesCounter_RBV'
-        data_pv = detector + ':' + detector_image + ':' + 'ArrayData'
-        sizex_pv = detector + ':' + detector_image + ':' + 'ArraySize0_RBV'
-        sizey_pv = detector + ':' + detector_image + ':' + 'ArraySize1_RBV'
-        frame_type_pv = detector + ':' + detector_basic + ':' + 'FrameType'
+        acquire_pv = detector + ':cam1:Acquire'
+        counter_pv = detector + ':cam1:NumImagesCounter_RBV'
+        data_pv = detector + ':image1:ArrayData'
+        sizex_pv = detector + ':image1:ArraySize0_RBV'
+        sizey_pv = detector + ':image1:ArraySize1_RBV'
+        frame_type_pv = detector + ':cam1:FrameType'
         return acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv
     
     
-    def feed_data(self, no_frames, detector, detector_basic, detector_image, logger, sequence=None, *args):
+    def feed_data(self, no_frames, detector, logger, sequence=None, *args):
         """
-        This function is called by an client to start the process.
+        This function is called by a client to start the process.
 
-        It parses configuration and gets needed process variables. It stores necessary values in the self object.
         After all initial settings are completed, the method awaits for the area detector to start acquireing by polling
         the PV. When the area detective is active it starts processing.
     
         Parameters
         ----------
-        config : str
-            a configuration file
+        no_frames : int
+            number of frames to feed, indefinately if -1
+
+        detector : str
+            detector name
     
         logger : Logger
             a Logger instance, recommended to use the same logger for feed and consuming process
@@ -343,7 +333,7 @@ class Feed:
         None
         """
 
-        acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector, detector_basic, detector_image)
+        acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector)
         self.no_frames = no_frames
         # if sequence is None:
         #     self.no_frames = no_frames
@@ -353,6 +343,7 @@ class Feed:
         #     self.sequence = sequence
         #     self.no_frames = sequence[len(sequence)-1][1] + 1
 
+        #self.start_processes(counter_pv, data_pv, frame_type_pv, logger, *args)
         test = True
 
         while test:

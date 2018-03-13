@@ -55,7 +55,7 @@ are called by the feed module.
 
 """
 
-from multiprocessing import Process
+from multiprocessing import Process, Queue
 from dquality.handler import handle_data
 import dquality.common.containers as containers
 import dquality.common.constants as const
@@ -98,18 +98,24 @@ def start_process(dataq, logger, *args):
     quality_checks = args[2]
     aggregate_limit = args[3]
     consumers = args[4]
-    feedback = args[5]
+    feedbackq = args[5]
 
-    feedback_obj = containers.Feedback(feedback)
-    if const.FEEDBACK_LOG in feedback:
-        feedback_obj.set_logger(logger)
+    # feedback_obj = containers.Feedback(feedback)
+    # if const.FEEDBACK_LOG in feedback:
+    #     feedback_obj.set_logger(logger)
+    #
+    # if const.FEEDBACK_PV in feedback:
+    #     feedback_pvs = utils.get_feedback_pvs(quality_checks)
+    #     detector = args[6]
+    #     feedback_obj.set_feedback_pv(feedback_pvs, detector)
+    #     if feedback_obj is not None:
+    #         feedbackq = Queue()
+    #         p = Process(target=feedback_obj.quality_feedback, args=(feedbackq,))
+    #         p.start()
+    #
 
-    if const.FEEDBACK_PV in feedback:
-        feedback_pvs = utils.get_feedback_pvs(quality_checks)
-        detector = args[6]
-        feedback_obj.set_feedback_pv(feedback_pvs, detector)
-
-    p = Process(target=handle_data, args=(dataq, limits, reportq, quality_checks, aggregate_limit, consumers, feedback_obj))
+    p = Process(target=handle_data, args=(dataq, limits, reportq, quality_checks, aggregate_limit, consumers, feedbackq))
+#    p = Process(target=handle_data, args=(dataq, limits, reportq, quality_checks, aggregate_limit, consumers, feedback_obj))
     p.start()
 
 
@@ -131,14 +137,6 @@ def parse_config(config):
 
     detector : str
         a string defining the first prefix in area detector, it has to match the area detector configuration
-
-    detector_basic : str
-        a string defining the second prefix in area detector, defining the basic parameters, it has to
-        match the area detector configuration
-
-    detector_image : str
-        a string defining the second prefix in area detector, defining the image parameters, it has to
-        match the area detector configuration
 
     """
 
@@ -162,18 +160,8 @@ def parse_config(config):
     except KeyError:
         print ('configuration error: detector parameter not configured.')
         return None
-    try:
-        detector_basic = conf['detector_basic']
-    except KeyError:
-        print ('configuration error: detector_basic parameter not configured.')
-        return None
-    try:
-        detector_image = conf['detector_image']
-    except KeyError:
-        print ('configuration error: detector_image parameter not configured.')
-        return None
 
-    return int(no_frames), aggregate_limit, detector, detector_basic, detector_image
+    return int(no_frames), aggregate_limit, detector
 
 
 def pack_data(slice, type):

@@ -1,69 +1,66 @@
 import zmq
 import os
+import signal
+import sys
 from os.path import expanduser
 import dquality.realtime.real_time as real
+import dquality.common.constants as const
 import threading
+import time
 
 
-class zmq_rec():
+class zmq_server():
     """
     This class represents ZeroMQ connection.
     """
-    def __init__(self, host=None, port=None):
+
+    def __init__(self, port=const.ZMQ_CONTROLLER_PORT):
         """
         Constructor
 
-        This constructor creates zmq Context and socket for the zmq.PAIR.
-        It initiate connect to the server given by host and port.
+        This constructor creates zmq Context and socket for the server in zmq.PAIR.
+        It initiate binds and listens for a connection.
 
         Parameters
         ----------
-        host : str
-            server host name
-
         port : str
             serving port
 
         """
+
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.PAIR)
-        self.socket.connect("tcp://" + host +":%s" % port)
+        self.socket.bind("tcp://*:%s" % port)
         self.ver = None
+        self.interrupted = False
+
 
     def destroy(self):
         """
         Destroys Context. This also closes socket associated with the context.
         """
+        self.socket.close()
         self.context.destroy()
+        self.interrupted = True
 
 
-def receive(zmq_host, zmq_rcv_port):
+def receive(conn):
     """
     This function receives data from socket and enqueues it into a queue until the end is detected.
 
     Parameters
     ----------
-    dataq : Queue
-        a queue passing data received from ZeroMQ server to another process
-
-    zmq_host : str
-        ZeroMQ server host name
-
-    zmq_rcv_port : str
-        ZeroMQ port
+    conn : zmq_server
+        a zmq_server instance
 
     Returns
     -------
     none
     """
 
-    conn = zmq_rec(zmq_host, zmq_rcv_port)
-    socket = conn.socket
-    interrupted = False
-    while not interrupted:
+    while not conn.interrupted:
         print ('waiting')
-        msg = socket.recv_json()
-        print 'got msg', msg
+        msg = conn.socket.recv_json()
         key = msg.get("key")
         if key == "start_ver":
             print ('starting ver')
@@ -80,8 +77,10 @@ def receive(zmq_host, zmq_rcv_port):
                 th.start()
 
         elif key == "stop_ver":
-            print('stopping')
-            conn.ver.finish()
+            print('stopping ver')
+            if not conn.ver is None:
+                conn.ver.finish()
+            conn.ver = None
 
         else:
             pass
@@ -89,5 +88,12 @@ def receive(zmq_host, zmq_rcv_port):
     print("Connection ended")
 
 if __name__ == "__main__":
-    receive('localhost', 5511)
+    def signal_handler(signal, frame):
+        conn.destroy()
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    conn = zmq_server(const.ZMQ_CONTROLLER_PORT)
+    receive(conn)
 

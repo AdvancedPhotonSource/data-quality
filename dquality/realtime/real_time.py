@@ -53,22 +53,19 @@ This module feeds the data coming from detector to a process using queue. It int
 plug in of area detector. The read of frame data from channel access happens on event of frame counter change.
 The change is detected with a callback. The data is passed to the consuming process.
 This module requires configuration file with the following parameters:
-'detector', a string defining the first prefix in area detector, it has to match the area detector configuration
-'detector_basic', a string defining the second prefix in area detector, defining the basic parameters, it has to
-match the area detector configuration
-'detector_image', a string defining the second prefix in area detector, defining the image parameters, it has to
-match the area detector configuration
+'detector', a string defining the first prefix in area detector.
 'no_frames', number of frames that will be fed
 'args', optional, list of process specific parameters, they need to be parsed to the desired format in the wrapper
 """
 
-from multiprocessing import Queue
+from multiprocessing import Process, Queue
 import json
 import sys
 import dquality.common.utilities as utils
 import dquality.common.report as report
 from dquality.realtime.feed import Feed
 import dquality.common.constants as const
+import dquality.common.containers as containers
 import dquality.realtime.adapter as adapter
 from dquality.realtime.feed_decorator import FeedDecorator
 
@@ -186,11 +183,25 @@ class RT:
         def get_decor(qc):
             decor = {}
             if 'rate_sat' in qc['data']:
-                decor['rate_sat'] = detector + ":" + detector_basic +":AcquireTime"
+                decor['rate_sat'] = detector + ":cam1" + ":AcquireTime"
             return decor
 
         logger, limits, quality_checks, feedback, report_type, consumers = init(config)
-        no_frames, aggregate_limit, detector, detector_basic, detector_image = adapter.parse_config(config)
+        no_frames, aggregate_limit, detector = adapter.parse_config(config)
+
+        feedback_obj = containers.Feedback(feedback)
+        if const.FEEDBACK_LOG in feedback:
+            feedback_obj.set_logger(logger)
+        # init the pv feedback
+        feedbackq = None
+        if const.FEEDBACK_PV in feedback:
+            feedback_pvs = utils.get_feedback_pvs(quality_checks)
+            feedback_obj.set_feedback_pv(feedback_pvs, detector)
+            if feedback_obj is not None:
+                feedbackq = Queue()
+                p = Process(target=feedback_obj.quality_feedback, args=(feedbackq,))
+                p.start()
+
 
         aggregateq = Queue()
 
@@ -202,8 +213,8 @@ class RT:
             self.feed = FeedDecorator(decor)
 
         aggregate_limit = no_frames
-        args = limits, aggregateq, quality_checks, aggregate_limit, consumers, feedback, detector
-        ack = self.feed.feed_data(no_frames, detector, detector_basic, detector_image, logger, sequence, *args)
+        args = limits, aggregateq, quality_checks, aggregate_limit, consumers, feedbackq, detector
+        ack = self.feed.feed_data(no_frames, detector, logger, sequence, *args)
         if ack == 1:
             bad_indexes = {}
 

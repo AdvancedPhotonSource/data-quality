@@ -110,14 +110,6 @@ def parse_config(config):
     detector : str
         a string defining the first prefix in area detector, it has to match the area detector configuration
 
-    detector_basic : str
-        a string defining the second prefix in area detector, defining the basic parameters, it has to
-        match the area detector configuration
-
-    detector_image : str
-        a string defining the second prefix in area detector, defining the image parameters, it has to
-        match the area detector configuration
-
     """
 
     # This is an exmple code
@@ -137,18 +129,8 @@ def parse_config(config):
     # except KeyError:
     #     print ('configuration error: detector parameter not configured.')
     #     return None
-    # try:
-    #     detector_basic = conf['detector_basic']
-    # except KeyError:
-    #     print ('configuration error: detector_basic parameter not configured.')
-    #     return None
-    # try:
-    #     detector_image = conf['detector_image']
-    # except KeyError:
-    #     print ('configuration error: detector_image parameter not configured.')
-    #     return None
     #
-    # return int(no_frames), detector, detector_basic, detector_image
+    # return int(no_frames), detector
 
 
 def pack_data(slice):

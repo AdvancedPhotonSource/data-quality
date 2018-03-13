@@ -4,16 +4,22 @@ from os.path import expanduser
 from configobj import ConfigObj
 import json
 import epics
-from PyQt4 import QtGui, uic
+from PyQt4 import QtGui, QtCore, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
 import zmq
 
 
-class zmq_sen():
-    def __init__(self, port=5511):
+default_det = "S12-PILATUS1"
+default_cntl_port = 5511
+default_cntl_host = 'localhost'
+ui = "testui.ui"
+
+
+class zmq_consumer():
+    def __init__(self, host = default_cntl_host, port=default_cntl_port):
         context = zmq.Context()
         self.socket = context.socket(zmq.PAIR)
-        self.socket.bind("tcp://*:%s" % port)
+        self.socket.connect("tcp://" + host + ":%s" % port)
 
 
 class Window(QtGui.QMainWindow):
@@ -21,10 +27,13 @@ class Window(QtGui.QMainWindow):
 
     def __init__(self):
         super(Window, self).__init__()
-        self.ui = uic.loadUi("verui.ui")
+        # set parameters from config file
+        self.detector = default_det
+        self.conf_map, self.feedback_pvs, self.quality_checks = self.get_ver_params()
+
+        self.ui = uic.loadUi(ui)
         self.ui.show()
 
-        self.detector = "S12-PILATUS1"
         self.show_limits()
         self.ui.det_name.setText(self.detector)
 
@@ -37,15 +46,18 @@ class Window(QtGui.QMainWindow):
         self.ui.rate_ll.returnPressed.connect(lambda: self.set_limit(self.ui.rate_ll, 'rate_sat','low_limit'))
         self.ui.rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.rate_hl, 'rate_sat','high_limit'))
 
+        self.feedback_pvs = self.get_feedback_pvs()
         self.setEpicsQualityFeedbackUpdate()
-        self.verifier_on = 0
 
+        self.verifier_on = 0
         self.ui.actionStart_verifier.triggered.connect(self.start_verifier)
         self.ui.actionStop_verifier.triggered.connect(self.stop_verifier)
 
         self.statusBarSignal.connect(self.onVerifierPVchange)
-        self.zmq_menu = zmq_sen()
+        self.zmq_menu = zmq_consumer()
         self.ui.statusBar.showMessage("verifier off")
+
+        self.list_cnt = 0
 
 
     def start_verifier(self):
@@ -58,10 +70,11 @@ class Window(QtGui.QMainWindow):
         )
         self.verifier_on = 1
         self.ui.statusBar.setStyleSheet(
-            "QStatusBar{padding-left:8px;background:rgba(0,0,0,0);color:black;font-weight:bold;}")
+            "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
         msg = 'not acquireing'
 
         self.ui.statusBar.showMessage(msg)
+
 
     def stop_verifier(self):
         socket = self.zmq_menu.socket
@@ -72,10 +85,11 @@ class Window(QtGui.QMainWindow):
         )
         self.verifier_on = 0
         self.ui.statusBar.setStyleSheet(
-            "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
-        msg = 'verifier off'
+            "QStatusBar{padding-left:8px;background:rgba(0,0,0,0);color:black;font-weight:bold;}")
+        msg = 'off'
 
         self.ui.statusBar.showMessage(msg)
+
 
     def set_detector(self):
         self.detector = str(self.ui.det_name.text())
@@ -83,15 +97,8 @@ class Window(QtGui.QMainWindow):
 
 
     def show_limits(self):
-        home = expanduser("~")
-        self.conf = os.path.join(home, '.dquality', self.detector)
-        if os.path.isdir(self.conf):
-            config = os.path.join(self.conf, 'dqconfig.ini')
-        if not os.path.isfile(config):
-            return None
-        conf_map = ConfigObj(config)
         try:
-            self.limits_file = conf_map['limits']
+            self.limits_file = self.conf_map['limits']
         except KeyError:
             self.limits_file = None
 
@@ -106,6 +113,23 @@ class Window(QtGui.QMainWindow):
         limitsfile.close()
 
 
+    def get_feedback_pvs(self):
+        try:
+            qcfile = self.conf_map['quality_checks']
+        except KeyError:
+            qcfile = None
+        with open(qcfile) as qc_file:
+            quality_checks = json.loads(qc_file.read())
+        qc_file.close()
+        feedback_pvs = []
+        for type in quality_checks:
+            qcs = quality_checks[type]
+            for qc in qcs:
+                qc_str = type + '_' + qc + '_ctr'
+                feedback_pvs.append(qc_str)
+        return feedback_pvs
+
+
     def set_limit(self, le_limit, key1, key2):
         limit_val = int(le_limit.text())
         self.limits[key1][key2] = limit_val
@@ -118,8 +142,9 @@ class Window(QtGui.QMainWindow):
 
     def setEpicsQualityFeedbackUpdate(self):
         try:
-            self.ver = epics.PV(self.detector + ':ver', callback=self.epicsCallbackFunc)
             self.acquire = epics.PV(self.detector + ':cam1:Acquire', callback=self.epicsCallbackFunc)
+            for pv in self.feedback_pvs:
+                epics.PV(self.detector + ':' + pv, callback=self.epicsCallbackFunc)
         except:
             self.ui.statusBar.showMessage('verifier off')
 
@@ -131,28 +156,87 @@ class Window(QtGui.QMainWindow):
     @pyqtSlot(str, str)
     def onVerifierPVchange(self, pvname, char_value):
         if not pvname is None:
-            if "ver" in pvname:
-                if int(float(char_value)) is 0:
-                    self.ui.statusBar.setStyleSheet(
-                        "QStatusBar{padding-left:8px;background:rgba(0,255,0,120);color:black;font-weight:bold;}")
-                    msg = 'verification pass'
-                elif int(float(char_value)) is 1:
-                    self.ui.statusBar.setStyleSheet(
-                        "QStatusBar{padding-left:8px;background:rgba(255,0,0,120);color:black;font-weight:bold;}")
-                    msg = 'verification failed'
+            if "ctr" in pvname and str(char_value) != '0.0':
+                # The pv increments when a frame fails. Read the failed quality check result.
+                res_pv = str(pvname.replace('ctr', 'res'))
+                value = epics.caget(res_pv)
+                self.ui.statusBar.setStyleSheet(
+                    "QStatusBar{padding-left:8px;background:rgba(255,0,0,120);color:black;font-weight:bold;}")
+                msg =  self.file_name + '_verification failed with value ' + str(value)
                 self.ui.statusBar.showMessage(msg)
+                list_item = self.get_list_item(res_pv, value)
+                if self.list_cnt <= 4:
+                    #self.ui.list_failed.addItem(list_item)
+                    self.ui.list_failed.insertItem(0, list_item)
+                    self.list_cnt = self.list_cnt + 1
+                else:
+                    # self.ui.list_failed.takeItem(0)
+                    # self.ui.list_failed.addItem(list_item)
+                    self.ui.list_failed.takeItem(4)
+                    self.ui.list_failed.insertItem(0, list_item)
             elif "Acquire" in pvname:
-                print 'got acquire change, value', char_value
-                if self.verifier_on is 1 and int(float(char_value)) is 0:
-                    self.ui.statusBar.setStyleSheet(
-                        "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
-                    msg = 'not acquireing'
+                if self.verifier_on is 1:
+                    if int(float(char_value)) is 0:
+                        self.ui.statusBar.setStyleSheet(
+                            "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
+                        msg = 'not acquireing'
+                    else:
+                        full_name = epics.caget(self.detector + ':cam1:FullFileName_RBV')
+                        rev_full_name = full_name[::-1]
+                        ind = rev_full_name.find['/']
+                        rev_name = rev_full_name[0:ind]
+                        self.file_name = rev_name[::-1]
+                        #self.file_name = 'test_file_name'
+                        self.ui.statusBar.setStyleSheet(
+                            "QStatusBar{padding-left:8px;background:rgba(0,255,0,120);color:black;font-weight:bold;}")
+                        msg = self.file_name + ' verification pass'
+
                     self.ui.statusBar.showMessage(msg)
         else:
             self.ui.statusBar.showMessage("ver pv name not defined")
 
 
+    def get_list_item(self, name, value):
+        temp = str(name.replace('_res', ''))
+        qc = temp.replace(self.detector+':data_', '')
+        return self.file_name + ' failed ' + qc + ' with result ' + str(value)
+
+
+    def get_ver_params(self):
+        home = expanduser("~")
+        conf = os.path.join(home, '.dquality', self.detector)
+        if os.path.isdir(conf):
+            config = os.path.join(conf, 'dqconfig.ini')
+        if not os.path.isfile(config):
+            return None
+        conf_map = ConfigObj(config)
+        try:
+            qcfile = conf_map['quality_checks']
+        except KeyError:
+            qcfile = None
+        with open(qcfile) as qc_file:
+            quality_checks = json.loads(qc_file.read())
+        qc_file.close()
+        feedback_pvs = []
+        for type in quality_checks:
+            qcs = quality_checks[type]
+            for qc in qcs:
+                qc_str = type + '_' + qc + '_ctr'
+                feedback_pvs.append(qc_str)
+        return conf_map, feedback_pvs, quality_checks
+
+
 if __name__ == "__main__":
     app = QtGui.QApplication(sys.argv)
     a = Window()
-    sys.exit(app.exec_())
+    socket = a.zmq_menu.socket
+    #sys.exit(app.exec_())
+    # stop verifier on exit
+    res = app.exec_()
+    socket.send_json(
+        dict(
+            key="stop_ver"
+        )
+    )
+    socket.close()
+    sys.exit(res)

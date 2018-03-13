@@ -163,7 +163,8 @@ def send_to_consumers(waiting_q, consumer_zmq, results):
 
 
 
-def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedback_obj=None):
+def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedbackq=None):
+#def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedback_obj=None):
     """
     This function creates and initializes all variables and handles data received on a 'dataq' queue.
 
@@ -221,12 +222,6 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
     if consumers is not None:
         consumer_zmq = init_consumers(consumers)
         waiting_q = deque()
-
-    feedbackq = None
-    if feedback_obj is not None:
-        feedbackq = Queue()
-        p = Process(target=feedback_obj.quality_feedback, args=(feedbackq,))
-        p.start()
 
     aggregates = {}
     types = quality_checks.keys()

@@ -83,7 +83,7 @@ class FbDriver(Driver):
         self.updatePVs()
 
 
-    def write(self, pv, index):
+    def write(self, pv, result):
         """
         This function override write method from Driver.
 
@@ -104,7 +104,7 @@ class FbDriver(Driver):
 
         """
         status = True
-        self.setParam(pv+'_ind', index)
+        self.setParam(pv+'_res', result)
         self.counters[pv] += 1
         # this method is called on failed quality check, increase counter for this pv
         self.setParam(pv+'_ctr', self.counters[pv])
@@ -151,9 +151,8 @@ class FbServer:
         counters = {}
         #add PV that follow index of failed farames and count of failed frames for each quality check
         for pv in feedback_pvs:
-            pvdb[pv+'_ind'] = { 'prec' : 0,}
-            pvdb[pv+'_ctr'] = { 'prec' : 0,
-                                'hihi' : 1, }
+            pvdb[pv+'_res'] = { 'prec' : 0,}
+            pvdb[pv+'_ctr'] = { 'prec' : 0,}
             counters[pv] = 0
 
         self.server.createPV(prefix, pvdb)
