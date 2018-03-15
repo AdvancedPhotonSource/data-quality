@@ -91,6 +91,7 @@ class Window(QtGui.QMainWindow):
 
     def set_detector(self):
         self.detector = str(self.ui.det_name.text())
+        self.conf_map, self.feedback_pvs, self.quality_checks = self.get_ver_params()
         self.show_limits()
 
 
