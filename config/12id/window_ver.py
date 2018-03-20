@@ -178,9 +178,9 @@ class Window(QtGui.QMainWindow):
                         self.set_status_color('yellow')
                         msg = 'not acquireing'
                     else:
-                        full_name = epics.caget(self.detector + ':cam1:FullFileName_RBV')
+                        full_name = epics.caget(self.detector + ':cam1:FullFileName_RBV', as_sting=True)
                         rev_full_name = full_name[::-1]
-                        ind = rev_full_name.find['/']
+                        ind = rev_full_name.find('/')
                         rev_name = rev_full_name[0:ind]
                         self.file_name = rev_name[::-1]
                         # self.file_name = 'test_file_name'
