@@ -151,7 +151,12 @@ def init(config):
     except KeyError:
         consumers = None
 
-    return logger, limits, quality_checks, feedback, report_type, consumers
+    try:
+        decor_conf = conf['decor']
+    except KeyError:
+        decor_conf = None
+
+    return logger, limits, quality_checks, feedback, report_type, consumers, decor_conf
 
 
 class RT:
@@ -180,13 +185,15 @@ class RT:
         boolean
 
         """
-        def get_decor(qc):
+        def get_decor(qc, decor_conf):
             decor = {}
             if 'rate_sat' in qc['data']:
-                decor['rate_sat'] = detector + ":cam1" + ":AcquireTime"
+                decor['rate_sat'] = detector + ':cam1:AcquireTime'
+            if 'file_name' in decor_conf:
+                decor['file_name'] = detector + ':cam1:FullFileName_RBV'
             return decor
 
-        logger, limits, quality_checks, feedback, report_type, consumers = init(config)
+        logger, limits, quality_checks, feedback, report_type, consumers, decor_conf = init(config)
         no_frames, aggregate_limit, detector = adapter.parse_config(config)
 
         feedback_obj = containers.Feedback(feedback)
@@ -202,11 +209,10 @@ class RT:
                 p = Process(target=feedback_obj.quality_feedback, args=(feedbackq,))
                 p.start()
 
-
         aggregateq = Queue()
 
         # address the special cases of quality checks when additional arguments are required
-        decor = get_decor(quality_checks)
+        decor = get_decor(quality_checks, decor_conf)
         if len(decor) is 0:
             self.feed = Feed()
         else:

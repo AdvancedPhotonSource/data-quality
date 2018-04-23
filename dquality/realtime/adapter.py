@@ -67,7 +67,8 @@ __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
 __docformat__ = 'restructuredtext en'
 __all__ = ['start_process',
            'parse_config',
-           'pack_data']
+           'pack_data',
+           'pack_data_with_decor']
 
 
 
@@ -185,7 +186,7 @@ def pack_data(slice, type):
         return containers.Data(const.DATA_STATUS_END)
 
 
-def pack_data_with_decor(slice, type, acq_time):
+def pack_data_with_decor(slice, type, acq_time, text):
     """
     This function packs a single image data into a specific container.
 
@@ -199,9 +200,10 @@ def pack_data_with_decor(slice, type, acq_time):
 
     """
     if slice is not None:
-        return containers.Data(const.DATA_STATUS_DATA, slice, type, acq_time)
+        return containers.Data(const.DATA_STATUS_DATA, slice, type, acq_time, text)
     elif type == 'missing':
         return containers.Data(const.DATA_STATUS_MISSING)
     else:
         return containers.Data(const.DATA_STATUS_END)
+
 

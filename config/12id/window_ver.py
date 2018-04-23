@@ -4,7 +4,7 @@ from os.path import expanduser
 from configobj import ConfigObj
 import json
 import epics
-from PyQt4 import QtGui, QtCore, uic
+from PyQt4 import QtGui, uic
 from PyQt4.QtCore import pyqtSignal, pyqtSlot
 import zmq
 
@@ -142,8 +142,7 @@ class Window(QtGui.QMainWindow):
     def setEpicsQualityFeedbackUpdate(self):
         try:
             self.acquire = epics.PV(self.detector + ':cam1:Acquire', callback=self.epicsCallbackFunc)
-            for pv in self.feedback_pvs:
-                epics.PV(self.detector + ':' + pv, callback=self.epicsCallbackFunc)
+            self.status = epics.PV(self.detector + ':STAT', callback=self.epicsCallbackFunc)
         except:
             self.ui.statusBar.showMessage('verifier off')
 
@@ -155,47 +154,34 @@ class Window(QtGui.QMainWindow):
     @pyqtSlot(str, str)
     def onVerifierPVchange(self, pvname, char_value):
         if not pvname is None:
-            if "ctr" in pvname and str(char_value) != '0.0':
-                # The pv increments when a frame fails. Read the failed quality check result.
-                res_pv = str(pvname.replace('ctr', 'res'))
-                value = epics.caget(res_pv)
-                self.set_status_color('red')
-                msg =  self.file_name + '_verification failed with value ' + str(value)
-                self.ui.statusBar.showMessage(msg)
-                list_item = self.get_list_item(res_pv, value)
-                if self.list_cnt <= 4:
-                    #self.ui.list_failed.addItem(list_item)
-                    self.ui.list_failed.insertItem(0, list_item)
-                    self.list_cnt = self.list_cnt + 1
+            if "STAT" in pvname:
+                msg = epics.caget(self.detector+':STAT', as_string=True)
+                failed = False
+                if msg.endswith('status'):
+                    pass
+                elif msg.endswith('pass'):
+                    self.set_status_color('green')
                 else:
-                    # self.ui.list_failed.takeItem(0)
-                    # self.ui.list_failed.addItem(list_item)
-                    self.ui.list_failed.takeItem(4)
-                    self.ui.list_failed.insertItem(0, list_item)
+                    failed = True
+                    self.set_status_color('red')
+                self.ui.statusBar.showMessage(msg)
+                if failed:
+                    list_item = msg
+                    if self.list_cnt <= 4:
+                        self.ui.list_failed.insertItem(0, list_item)
+                        self.list_cnt = self.list_cnt + 1
+                    else:
+                        self.ui.list_failed.takeItem(4)
+                        self.ui.list_failed.insertItem(0, list_item)
             elif "Acquire" in pvname:
                 if self.verifier_on is 1:
                     if int(float(char_value)) is 0:
                         self.set_status_color('yellow')
                         msg = 'not acquireing'
-                    else:
-                        full_name = epics.caget(self.detector + ':cam1:FullFileName_RBV', as_sting=True)
-                        rev_full_name = full_name[::-1]
-                        ind = rev_full_name.find('/')
-                        rev_name = rev_full_name[0:ind]
-                        self.file_name = rev_name[::-1]
-                        # self.file_name = 'test_file_name'
-                        self.set_status_color('green')
-                        msg = self.file_name + ' verification pass'
-
-                    self.ui.statusBar.showMessage(msg)
+                        self.ui.statusBar.showMessage(msg)
         else:
             self.ui.statusBar.showMessage("ver pv name not defined")
 
-
-    def get_list_item(self, name, value):
-        temp = str(name.replace('_res', ''))
-        qc = temp.replace(self.detector+':data_', '')
-        return self.file_name + ' failed ' + qc + ' with result ' + str(value)
 
     def set_status_color(self, color):
         if color is 'red':

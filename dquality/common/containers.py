@@ -2,7 +2,6 @@ from multiprocessing import Lock
 import dquality.common.constants as const
 from multiprocessing import Process
 import importlib
-import os
 from os import path
 import sys
 import dquality.realtime.pv_feedback_driver as drv
@@ -28,7 +27,8 @@ class Results:
     This class is a container of results of all quality checks for a single frame, and attributes such as flag
     indicating if all quality checks passed, dat type, and index.
     """
-    def __init__(self, type, index, failed, results):
+    def __init__(self, type, index, failed, results, text=None):
+        self.text = text
         self.type = type
         self.index = index
         self.failed = failed
@@ -41,13 +41,15 @@ class Data:
     """
     This class is a container of data.
     """
-    def __init__(self, status, slice=None, type=None, acq_time=None, ack=None):
+    def __init__(self, status, slice=None, type=None, acq_time=None, text=None):
         self.status = status
         if status == const.DATA_STATUS_DATA:
             self.slice = slice
             self.type = type
             if acq_time is not None:
                 self.acq_time = acq_time
+            if text is not None:
+                self.text = text
 
 
 class Feedback:
@@ -102,7 +104,7 @@ class Feedback:
         """
         self.driver = driver
 
-    def write_to_pv(self, pv, index):
+    def write_to_pv(self, pv, res, index, error, text=None):
         """
         This function calls write method on driver field to update pv.
 
@@ -113,7 +115,7 @@ class Feedback:
         index : int
             index of failed frame
         """
-        self.driver.write(pv, index)
+        self.driver.write(pv, res, index, error, text)
 
     def quality_feedback(self, feedbackq):
         """
@@ -140,19 +142,53 @@ class Feedback:
 
         evaluating = True
         while evaluating:
-            result = feedbackq.get()
+            # result = feedbackq.get()
+            #
+            # if result == const.DATA_STATUS_END:
+            #     evaluating = False
+            # else:
+            #     #if result.error != 0 or const.FEEDBACK_FULL in self.feedback_type:
+            #         if const.FEEDBACK_CONSOLE in self.feedback_type:
+            #             print ('failed frame ' + str(result.index) + ' result of ' +
+            #                 result.quality_id + ' is ' + str(result.res))
+            #         if const.FEEDBACK_LOG in self.feedback_type:
+            #             self.logger.info('failed frame ' + str(result.index) + ' result of ' +
+            #                 result.quality_id + ' is ' + str(result.res))
+            #         if const.FEEDBACK_PV in self.feedback_type:
+            #             self.write_to_pv(result.type + '_' + result.quality_id, result.index, result.error)
 
-            if result == const.DATA_STATUS_END:
+            results = feedbackq.get()
+
+            if results == const.DATA_STATUS_END:
                 evaluating = False
             else:
-                if const.FEEDBACK_CONSOLE in self.feedback_type:
-                    print ('failed frame ' + str(result.index) + ' result of ' +
-                        result.quality_id + ' is ' + str(result.res))
-                if const.FEEDBACK_LOG in self.feedback_type:
-                    self.logger.info('failed frame ' + str(result.index) + ' result of ' +
-                        result.quality_id + ' is ' + str(result.res))
-                if const.FEEDBACK_PV in self.feedback_type:
-                    self.write_to_pv(result.type + '_' + result.quality_id, result.index)
+                try:
+                    text = results.text
+                except:
+                    text = None
+
+                if not const.FEEDBACK_FULL in self.feedback_type:
+                    if results.failed:
+                        for result in results.results:
+                            if result.error != 0:
+                                if const.FEEDBACK_CONSOLE in self.feedback_type:
+                                    print ('failed frame ' + str(result.index) + ' result of ' +
+                                        result.quality_id + ' is ' + str(result.res))
+                                if const.FEEDBACK_LOG in self.feedback_type:
+                                    self.logger.info('failed frame ' + str(result.index) + ' result of ' +
+                                        result.quality_id + ' is ' + str(result.res))
+                                if const.FEEDBACK_PV in self.feedback_type:
+                                    self.write_to_pv(result.type + '_' + result.quality_id, result.res, result.index, result.error,
+                                                     text)
+                elif const.FEEDBACK_PV in self.feedback_type:
+                    if results.failed:
+                        if results.failed:
+                            for result in results.results:
+                                if result.error != 0:
+                                    self.write_to_pv(results.type + '_' + result.quality_id, result.res, results.index, result.error,
+                                                     text)
+                    else:
+                        self.write_to_pv('STAT', 0, results.index, const.NO_ERROR, text)
 
 
 class Aggregate:
@@ -262,21 +298,25 @@ class Aggregate:
         -------
         none
         """
-        def send_feedback():
-            if self.feedbackq is not None:
-                for result in results.results:
-                    if result.error != 0:
-                        result.index = results.index
-                        result.type = results.type
-                        self.feedbackq.put(result)
+        # def send_feedback():
+        #     if self.feedbackq is not None:
+        #         for result in results.results:
+        #             if result.error != 0:
+        #                 result.index = results.index
+        #                 result.type = results.type
+        #                 self.feedbackq.put(result)
 
         if self.aggregate_limit == -1:
-            if results.failed:
-                send_feedback()
+            #if results.failed:
+            if self.feedbackq is not None:
+                self.feedbackq.put(results)
+                #send_feedback()
         else:
             if results.failed:
                 self.bad_indexes[results.index] = results.results
-                send_feedback()
+                if self.feedbackq is not None:
+                    self.feedbackq.put(results)
+                #send_feedback()
             else:
                 self.good_indexes[results.index] = results.results
                 for result in results.results:

@@ -54,7 +54,7 @@ This module contains classes handling real time feedback of the quality results 
 """
 
 from pcaspy import SimpleServer, Driver
-
+import dquality.common.constants as const
 
 class FbDriver(Driver):
     """
@@ -83,7 +83,7 @@ class FbDriver(Driver):
         self.updatePVs()
 
 
-    def write(self, pv, result):
+    def write(self, pv, result, index, error, text):
         """
         This function override write method from Driver.
 
@@ -103,13 +103,24 @@ class FbDriver(Driver):
             Driver status
 
         """
-        status = True
-        self.setParam(pv+'_res', result)
-        self.counters[pv] += 1
-        # this method is called on failed quality check, increase counter for this pv
-        self.setParam(pv+'_ctr', self.counters[pv])
-        self.updatePVs()
-        return status
+        if text is None:
+            status = True
+            self.setParam(pv+'_res', result)
+            self.counters[pv] += 1
+            # this method is called on failed quality check, increase counter for this pv
+            self.setParam(pv+'_ctr', self.counters[pv])
+            self.updatePVs()
+            return status
+        else:
+            status = True
+            if error == const.NO_ERROR:
+                msg = text + ' verification pass'
+            else:
+                msg = text + ' failed ' + pv + ' with result ' + str(result)
+
+            self.setParam('STAT', msg)
+            self.updatePVs()
+            return status
 
 
 class FbServer:
@@ -154,6 +165,12 @@ class FbServer:
             pvdb[pv+'_res'] = { 'prec' : 0,}
             pvdb[pv+'_ctr'] = { 'prec' : 0,}
             counters[pv] = 0
+
+        pvdb['STAT'] = {
+                            'type': 'char',
+                            'count' : 300,
+                            'value' : 'status'
+                        }
 
         self.server.createPV(prefix, pvdb)
 

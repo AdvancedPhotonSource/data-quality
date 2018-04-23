@@ -244,7 +244,7 @@ def frame_sat(**kws):
     this_limits = limits['frame_sat']
     sat_high = (limits['sat'])['high_limit']
     res = (data.slice > sat_high).sum()
-    result = Result(res, 'frame_sat', this_limits)
+    result = find_result(res, 'frame_sat', this_limits)
     return result
 
 
@@ -417,20 +417,9 @@ def run_quality_checks(data, index, resultsq, aggregate, limits, quality_checks)
         if result.error != 0:
             failed = True
 
-
-    # for qc in quality_checks:
-    #     function = function_mapper[qc]
-    #     if qc < const.STAT_START:
-    #         result = function(data, limits)
-    #         results_dir[qc] = result
-    #         if result.error != 0:
-    #             failed = True
-    #     else:
-    #         if not failed:
-    #             result = function(limits, aggregate, results_dir)
-    #             results_dir[qc] = result
-    #             if result.error != 0:
-    #                 failed = True
-
     results = Results(data.type, index, failed, results_dir)
+    try:
+        results.text = data.text
+    except:
+        pass
     resultsq.put(results)
