@@ -164,7 +164,6 @@ def send_to_consumers(waiting_q, consumer_zmq, results):
 
 
 def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedbackq=None):
-#def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedback_obj=None):
     """
     This function creates and initializes all variables and handles data received on a 'dataq' queue.
 
@@ -228,19 +227,19 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
     for type in types:
         aggregates[type] = Aggregate(type, quality_checks[type], aggregate_limit, feedbackq)
 
-    resultsq = Queue()
+#    resultsq = Queue()
     interrupted = False
     index = 0
-    num_processes = 0
+#    num_processes = 0
     while not interrupted:
         try:
             data = dataq.get(timeout=0.005)
             if data.status == const.DATA_STATUS_END:
                 interrupted = True
-                while num_processes > 0:
-                    results = resultsq.get()
-                    aggregates[results.type].handle_results(results)
-                    num_processes -= 1
+                # while num_processes > 0:
+                #     results = resultsq.get()
+                #     aggregates[results.type].handle_results(results)
+                #     num_processes -= 1
                 if feedbackq is not None:
                     for _ in range(len(aggregates)):
                         feedbackq.put(const.DATA_STATUS_END)
@@ -249,20 +248,23 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
                     send_to_consumers(waiting_q, consumer_zmq, results)
 
             elif data.status == const.DATA_STATUS_MISSING:
-                if waiting_q is not None:
-                    data.index = index
-                    waiting_q.appendleft(data)
+                # if waiting_q is not None:
+                #     data.index = index
+                #     waiting_q.appendleft(data)
                 index += 1
 
             elif data.status == const.DATA_STATUS_DATA:
-                if waiting_q is not None:
-                    data.index = index
-                    waiting_q.appendleft(data)
+                # if waiting_q is not None:
+                #     data.index = index
+                #     waiting_q.appendleft(data)
                 type = data.type
-                p = Process(target=calc.run_quality_checks,
-                            args=(data, index, resultsq, aggregates[type], limits[type], quality_checks[type]))
-                p.start()
-                num_processes += 1
+
+                results = calc.run_quality_checks(data, index, aggregates[type], limits[type], quality_checks[type])
+                aggregates[results.type].handle_results(results)
+                # p = Process(target=calc.run_quality_checks,
+                #             args=(data, index, resultsq, aggregates[type], limits[type], quality_checks[type]))
+                # p.start()
+                # num_processes += 1
                 index += 1
 
             else:
@@ -271,12 +273,12 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
         except queue.Empty:
             pass
 
-        while not resultsq.empty():
-            results = resultsq.get_nowait()
-            aggregates[results.type].handle_results(results)
-            num_processes -= 1
-            if consumers is not None:
-                send_to_consumers(waiting_q, consumer_zmq, results)
+        # while not resultsq.empty():
+        #     results = resultsq.get_nowait()
+        #     aggregates[results.type].handle_results(results)
+        #     num_processes -= 1
+        #     if consumers is not None:
+        #         send_to_consumers(waiting_q, consumer_zmq, results)
 
     if reportq is not None:
         results = {}

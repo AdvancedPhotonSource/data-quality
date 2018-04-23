@@ -142,21 +142,6 @@ class Feedback:
 
         evaluating = True
         while evaluating:
-            # result = feedbackq.get()
-            #
-            # if result == const.DATA_STATUS_END:
-            #     evaluating = False
-            # else:
-            #     #if result.error != 0 or const.FEEDBACK_FULL in self.feedback_type:
-            #         if const.FEEDBACK_CONSOLE in self.feedback_type:
-            #             print ('failed frame ' + str(result.index) + ' result of ' +
-            #                 result.quality_id + ' is ' + str(result.res))
-            #         if const.FEEDBACK_LOG in self.feedback_type:
-            #             self.logger.info('failed frame ' + str(result.index) + ' result of ' +
-            #                 result.quality_id + ' is ' + str(result.res))
-            #         if const.FEEDBACK_PV in self.feedback_type:
-            #             self.write_to_pv(result.type + '_' + result.quality_id, result.index, result.error)
-
             results = feedbackq.get()
 
             if results == const.DATA_STATUS_END:
@@ -228,7 +213,6 @@ class Aggregate:
         self.good_indexes = {}
 
         self.results = {}
-        self.lock = Lock()
         for qc in quality_checks:
             self.results[qc] = []
 
@@ -236,8 +220,6 @@ class Aggregate:
     def get_results(self, check):
         """
         This returns the results of a given quality check.
-
-        This operation uses lock, as other process writes to results.
 
         Parameters
         ----------
@@ -249,33 +231,8 @@ class Aggregate:
         res : list
             a list containing results that passed the given quality check
         """
-        self.lock.acquire()
         res = self.results[check]
-        self.lock.release()
         return res
-
-
-    def add_result(self, result, check):
-        """
-        This add a new result for a given quality check to results.
-
-        This operation uses lock, as other process reads the results.
-
-        Parameters
-        ----------
-        result : Result
-            a result instance
-
-        check : int
-            a value indication quality check id
-
-        Returns
-        -------
-        none
-        """
-        self.lock.acquire()
-        self.results[check].append(result)
-        self.lock.release()
 
 
     def handle_results(self, results):
@@ -298,29 +255,18 @@ class Aggregate:
         -------
         none
         """
-        # def send_feedback():
-        #     if self.feedbackq is not None:
-        #         for result in results.results:
-        #             if result.error != 0:
-        #                 result.index = results.index
-        #                 result.type = results.type
-        #                 self.feedbackq.put(result)
-
         if self.aggregate_limit == -1:
-            #if results.failed:
             if self.feedbackq is not None:
                 self.feedbackq.put(results)
-                #send_feedback()
         else:
             if results.failed:
                 self.bad_indexes[results.index] = results.results
                 if self.feedbackq is not None:
                     self.feedbackq.put(results)
-                #send_feedback()
             else:
                 self.good_indexes[results.index] = results.results
                 for result in results.results:
-                    self.add_result(result.res, result.quality_id)
+                    self.results[result.quality_id].append(result)
 
 
     def is_empty(self):

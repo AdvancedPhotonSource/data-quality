@@ -375,7 +375,7 @@ function_mapper = {'mean' : mean,
                    'stat_mean' : stat_mean,
                    'acc_sat' : acc_sat}
 
-def run_quality_checks(data, index, resultsq, aggregate, limits, quality_checks):
+def run_quality_checks(data, index, aggregate, limits, quality_checks):
     """
     This function runs validation methods applicable to the frame data type and enqueues results.
 
@@ -422,4 +422,4 @@ def run_quality_checks(data, index, resultsq, aggregate, limits, quality_checks)
         results.text = data.text
     except:
         pass
-    resultsq.put(results)
+    return results

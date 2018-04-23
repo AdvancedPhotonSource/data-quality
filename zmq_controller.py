@@ -6,7 +6,6 @@ from os.path import expanduser
 import dquality.realtime.real_time as real
 import dquality.common.constants as const
 import threading
-import time
 
 
 class zmq_server():
@@ -59,11 +58,11 @@ def receive(conn):
     """
 
     while not conn.interrupted:
-        print ('waiting')
+        # print ('waiting')
         msg = conn.socket.recv_json()
         key = msg.get("key")
         if key == "start_ver":
-            print ('starting ver')
+            # print ('starting ver')
             detector = msg["detector"]
             home = expanduser("~")
             conf = os.path.join(home, '.dquality', detector)
@@ -77,7 +76,7 @@ def receive(conn):
                 th.start()
 
         elif key == "stop_ver":
-            print('stopping ver')
+            # print('stopping ver')
             if not conn.ver is None:
                 conn.ver.finish()
             conn.ver = None

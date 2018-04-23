@@ -112,7 +112,6 @@ def init(config):
         a dictionary parsed from json file representing consumers
 
     """
-
     conf = utils.get_config(config)
     if conf is None:
         print ('configuration file is missing')
@@ -189,8 +188,9 @@ class RT:
             decor = {}
             if 'rate_sat' in qc['data']:
                 decor['rate_sat'] = detector + ':cam1:AcquireTime'
-            if 'file_name' in decor_conf:
-                decor['file_name'] = detector + ':cam1:FullFileName_RBV'
+            if not decor_conf is None:
+                if 'file_name' in decor_conf:
+                    decor['file_name'] = detector + ':cam1:FullFileName_RBV'
             return decor
 
         logger, limits, quality_checks, feedback, report_type, consumers, decor_conf = init(config)
