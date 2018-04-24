@@ -157,13 +157,13 @@ class Feedback:
                         for result in results.results:
                             if result.error != 0:
                                 if const.FEEDBACK_CONSOLE in self.feedback_type:
-                                    print ('failed frame ' + str(result.index) + ' result of ' +
+                                    print ('failed frame ' + str(results.index) + ' result of ' +
                                         result.quality_id + ' is ' + str(result.res))
                                 if const.FEEDBACK_LOG in self.feedback_type:
-                                    self.logger.info('failed frame ' + str(result.index) + ' result of ' +
+                                    self.logger.info('failed frame ' + str(results.index) + ' result of ' +
                                         result.quality_id + ' is ' + str(result.res))
                                 if const.FEEDBACK_PV in self.feedback_type:
-                                    self.write_to_pv(result.type + '_' + result.quality_id, result.res, result.index, result.error,
+                                    self.write_to_pv(results.type + '_' + result.quality_id, result.res, results.index, result.error,
                                                      text)
                 elif const.FEEDBACK_PV in self.feedback_type:
                     if results.failed:

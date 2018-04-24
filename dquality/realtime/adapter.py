@@ -101,22 +101,8 @@ def start_process(dataq, logger, *args):
     consumers = args[4]
     feedbackq = args[5]
 
-    # feedback_obj = containers.Feedback(feedback)
-    # if const.FEEDBACK_LOG in feedback:
-    #     feedback_obj.set_logger(logger)
-    #
-    # if const.FEEDBACK_PV in feedback:
-    #     feedback_pvs = utils.get_feedback_pvs(quality_checks)
-    #     detector = args[6]
-    #     feedback_obj.set_feedback_pv(feedback_pvs, detector)
-    #     if feedback_obj is not None:
-    #         feedbackq = Queue()
-    #         p = Process(target=feedback_obj.quality_feedback, args=(feedbackq,))
-    #         p.start()
-    #
 
     p = Process(target=handle_data, args=(dataq, limits, reportq, quality_checks, aggregate_limit, consumers, feedbackq))
-#    p = Process(target=handle_data, args=(dataq, limits, reportq, quality_checks, aggregate_limit, consumers, feedback_obj))
     p.start()
 
 
