@@ -90,9 +90,17 @@ class Window(QtGui.QMainWindow):
 
 
     def set_detector(self):
+        restart = False
+        if self.verifier_on == 1:
+            self.stop_verifier()
+            restart = True
+
         self.detector = str(self.ui.det_name.text())
         self.conf_map, self.feedback_pvs, self.quality_checks = self.get_ver_params()
         self.show_limits()
+
+        if restart:
+            self.start_verifier()
 
 
     def show_limits(self):
@@ -130,6 +138,11 @@ class Window(QtGui.QMainWindow):
 
 
     def set_limit(self, le_limit, key1, key2):
+        restart = False
+        if self.verifier_on == 1:
+            self.stop_verifier()
+            restart = True
+
         limit_val = int(le_limit.text())
         self.limits[key1][key2] = limit_val
         data_limits = {}
@@ -137,6 +150,9 @@ class Window(QtGui.QMainWindow):
         with open(self.limits_file, 'w') as limitsfile:
             json.dump(data_limits, limitsfile)
         limitsfile.close()
+
+        if restart:
+            self.start_verifier()
 
 
     def setEpicsQualityFeedbackUpdate(self):
