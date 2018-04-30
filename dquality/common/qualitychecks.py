@@ -211,7 +211,7 @@ def rate_sat(**kws):
     data = kws['data']
 
     this_limits = limits['rate_sat']
-    acq_time = data.acq_time
+    acq_time = data.rate_sat
     res = data.slice.sum()/acq_time
     result = find_result(res, 'rate_sat', this_limits)
     return result
@@ -418,8 +418,4 @@ def run_quality_checks(data, index, aggregate, limits, quality_checks):
             failed = True
 
     results = Results(data.type, index, failed, results_dir)
-    try:
-        results.text = data.text
-    except:
-        pass
     return results

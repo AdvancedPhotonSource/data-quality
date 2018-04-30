@@ -151,7 +151,7 @@ def parse_config(config):
     return int(no_frames), aggregate_limit, detector
 
 
-def pack_data(slice, type):
+def pack_data(slice, type, **kwargs):
     """
     This function packs a single image data into a specific container.
 
@@ -165,28 +165,7 @@ def pack_data(slice, type):
 
     """
     if slice is not None:
-        return containers.Data(const.DATA_STATUS_DATA, slice, type)
-    elif type == 'missing':
-        return containers.Data(const.DATA_STATUS_MISSING)
-    else:
-        return containers.Data(const.DATA_STATUS_END)
-
-
-def pack_data_with_decor(slice, type, acq_time, text):
-    """
-    This function packs a single image data into a specific container.
-
-    Parameters
-    ----------
-    slice : nparray
-        image data
-
-    type : str
-       data type, as 'data', 'data_white', or 'data_dark'
-
-    """
-    if slice is not None:
-        return containers.Data(const.DATA_STATUS_DATA, slice, type, acq_time, text)
+        return containers.Data(const.DATA_STATUS_DATA, slice, type, **kwargs)
     elif type == 'missing':
         return containers.Data(const.DATA_STATUS_MISSING)
     else:

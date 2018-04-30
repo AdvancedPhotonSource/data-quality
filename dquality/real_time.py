@@ -63,11 +63,11 @@ import json
 import sys
 import dquality.common.utilities as utils
 import dquality.common.report as report
-from dquality.realtime.feed import Feed
+from dquality.feeds.pv_feed import Feed
 import dquality.common.constants as const
-import dquality.common.containers as containers
-import dquality.realtime.adapter as adapter
-from dquality.realtime.feed_decorator import FeedDecorator
+import dquality.clients.fb_client.feedback as fb
+import dquality.feeds.adapter as adapter
+from dquality.feeds.pv_feed_decorator import FeedDecorator
 
 
 __author__ = "Barbara Frosik"
@@ -137,6 +137,8 @@ def init(config):
 
     try:
         feedback = conf['feedback_type']
+        if len(feedback) == 0:
+            feedback = None
     except KeyError:
         feedback = None
 
@@ -152,10 +154,16 @@ def init(config):
 
     try:
         decor_conf = conf['decor']
+        decor_map = {}
+        for entry in decor_conf:
+            entry = entry.split('>')
+            decor_map[entry[0].strip()] = entry[1].strip()
+        if len(decor_map) == 0:
+            decor_map = None
     except KeyError:
-        decor_conf = None
+        decor_map = None
 
-    return logger, limits, quality_checks, feedback, report_type, consumers, decor_conf
+    return logger, limits, quality_checks, feedback, report_type, consumers, decor_map
 
 
 class RT:
@@ -184,41 +192,33 @@ class RT:
         boolean
 
         """
-        def get_decor(qc, decor_conf):
-            decor = {}
-            if 'rate_sat' in qc['data']:
-                decor['rate_sat'] = detector + ':cam1:AcquireTime'
-            if not decor_conf is None:
-                if 'file_name' in decor_conf:
-                    decor['file_name'] = detector + ':cam1:FullFileName_RBV'
-            return decor
-
-        logger, limits, quality_checks, feedback, report_type, consumers, decor_conf = init(config)
+        logger, limits, quality_checks, feedback, report_type, consumers, decor_map = init(config)
         no_frames, aggregate_limit, detector = adapter.parse_config(config)
 
-        feedback_obj = containers.Feedback(feedback)
-        if const.FEEDBACK_LOG in feedback:
-            feedback_obj.set_logger(logger)
         # init the pv feedback
         feedbackq = None
-        if const.FEEDBACK_PV in feedback:
+        if not feedback is None:
+            feedbackq = Queue()
             feedback_pvs = utils.get_feedback_pvs(quality_checks)
-            feedback_obj.set_feedback_pv(feedback_pvs, detector)
-            if feedback_obj is not None:
-                feedbackq = Queue()
-                p = Process(target=feedback_obj.quality_feedback, args=(feedbackq,))
-                p.start()
+            args = {'feedback_pvs':feedback_pvs, 'detector':detector}
+            #args = {'detector':detector}
+            feedback_obj = fb.Feedback(feedbackq, feedback, **args)
+            if const.FEEDBACK_LOG in feedback:
+                feedback_obj.set_logger(logger)
+
+            p = Process(target=feedback_obj.deliver, args=())
+            p.start()
 
         aggregateq = Queue()
 
         # address the special cases of quality checks when additional arguments are required
-        decor = get_decor(quality_checks, decor_conf)
-        if len(decor) is 0:
+        if decor_map is None:
             self.feed = Feed()
         else:
-            self.feed = FeedDecorator(decor)
+            self.feed = FeedDecorator(decor_map, detector)
 
         aggregate_limit = no_frames
+        print 'feedbackq', feedbackq
         args = limits, aggregateq, quality_checks, aggregate_limit, consumers, feedbackq, detector
         ack = self.feed.feed_data(no_frames, detector, logger, sequence, *args)
         if ack == 1:

@@ -1,4 +1,4 @@
-import dquality.realtime.zmq_receiver as rec
+import dquality.feeds.zmq_receiver as rec
 
 def run_recev(config):
     rec.verify(config)

@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################
-# Copyright (c) 2015, UChicago Argonne, LLC. All rights reserved.         #
+# Copyright (c) 2016, UChicago Argonne, LLC. All rights reserved.         #
 #                                                                         #
-# Copyright 2015. UChicago Argonne, LLC. This software was produced       #
+# Copyright 2016. UChicago Argonne, LLC. This software was produced       #
 # under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
 # Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
 # U.S. Department of Energy. The U.S. Government has rights to use,       #
@@ -45,37 +45,8 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
 # POSSIBILITY OF SUCH DAMAGE.                                             #
 # #########################################################################
-"""
-Please make sure the installation :ref:`pre-requisite-reference-label` are met.
 
-This example takes one mandatory parameter:
-instrument: a string defining the detector that will be used. It is assumed that a subdirectory with the name of
-'instrument' exists in the ~/.dquality directory, and that the subdirectory contains configuration file named
-dqconfig.init.
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-This script calls zmq_receiver verifier.
-
-"""
-import dquality.feeds.zmq_receiver as rec
-import sys
-import os
-import argparse
-from os.path import expanduser
-
-def main(arg):
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("instrument", help="instrument name, name should have a matching directory in the .dquality folder")
-
-    args = parser.parse_args()
-    instrument = args.instrument
-
-    home = expanduser("~")
-    conf = os.path.join(home, ".dquality", instrument)
-
-    rec.verify(conf)
-
-
-if __name__ == "__main__":
-    main(sys.argv[1:])
-
+from dquality import *

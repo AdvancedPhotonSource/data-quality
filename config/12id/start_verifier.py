@@ -57,9 +57,8 @@ from multiprocessing import Process
 from multiprocessing.managers import SyncManager
 import os
 from os.path import expanduser
-import dquality.realtime.real_time as real
+import dquality.real_time as real
 import argparse
-import json
 import sys
 import time
 

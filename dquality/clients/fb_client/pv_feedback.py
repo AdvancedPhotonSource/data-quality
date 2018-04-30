@@ -54,14 +54,36 @@ This module contains classes handling real time feedback of the quality results 
 """
 
 from pcaspy import SimpleServer, Driver
-import dquality.common.constants as const
+import sys
+if sys.version[0] == '2':
+    import thread as thread
+else:
+    import _thread as thread
+
+
+class PV_FB(object):
+    def __init__(self, **kwargs):
+        for key in kwargs:
+            setattr(self, key, kwargs[key])
+
+
+    def start_driver(self):
+        server = FbServer()
+        driver = server.init_driver(self.detector, self.feedback_pvs)
+        thread.start_new_thread(server.activate_pv, ())
+        self.driver = driver
+
+
+    def write_to_pv(self, results):
+        self.driver.write(results)
+
 
 class FbDriver(Driver):
     """
-    This class is a driver that overrites write method and has a field counters.
+    This class is a driver that overrites write method.
 
     """
-    def __init__(self, counters):
+    def __init__(self, **kwargs):
         """
         Constructor
 
@@ -73,7 +95,10 @@ class FbDriver(Driver):
 
         """
         super(FbDriver, self).__init__()
-        self.counters = counters
+        try:
+            self.counters = kwargs['counters']
+        except:
+            pass
 
 
     def reset_counters(self):
@@ -83,7 +108,7 @@ class FbDriver(Driver):
         self.updatePVs()
 
 
-    def write(self, pv, result, index, error, text):
+    def write(self, results):
         """
         This function override write method from Driver.
 
@@ -103,27 +128,20 @@ class FbDriver(Driver):
             Driver status
 
         """
-        if text is None:
-            status = True
-            self.setParam(pv+'_res', result)
-            self.counters[pv] += 1
-            # this method is called on failed quality check, increase counter for this pv
-            self.setParam(pv+'_ctr', self.counters[pv])
+        status = True
+        if results.failed:
+            for result in results.results:
+                if result.error != 0:
+                    pv = results.type + '_' + result.quality_id
+                    self.setParam(pv+'_res', result)
+                    self.counters[pv] += 1
+                    # this method is called on failed quality check, increase counter for this pv
+                    self.setParam(pv+'_ctr', self.counters[pv])
             self.updatePVs()
-            return status
-        else:
-            status = True
-            if error == const.NO_ERROR:
-                msg = text + ' verification pass'
-            else:
-                msg = text + ' failed ' + pv + ' with result ' + str(result)
-
-            self.setParam('STAT', msg)
-            self.updatePVs()
-            return status
+        return status
 
 
-class FbServer:
+class FbServer(object):
     """
     This class is a server that controls the FbDriver.
 
@@ -166,15 +184,9 @@ class FbServer:
             pvdb[pv+'_ctr'] = { 'prec' : 0,}
             counters[pv] = 0
 
-        pvdb['STAT'] = {
-                            'type': 'char',
-                            'count' : 300,
-                            'value' : 'status'
-                        }
-
         self.server.createPV(prefix, pvdb)
 
-        driver = FbDriver(counters)
+        driver = FbDriver(counters=counters)
         return driver
 
     def activate_pv(self):

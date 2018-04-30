@@ -52,8 +52,8 @@ To use Please make sure the installation :ref:`pre-requisite-reference-label` ar
 """
 
 import json
-import dquality.realtime.real_time as real
-import dquality.realtime.zmq_receiver as rec
+import dquality.real_time as real
+import dquality.feeds.zmq_receiver as rec
 
 
 __author__ = "Barbara Frosik"

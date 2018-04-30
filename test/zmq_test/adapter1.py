@@ -1,5 +1,5 @@
 from multiprocessing import Process
-from dquality.realtime.zmq_sender import receive_send_zmq
+from dquality.feeds.zmq_sender import receive_send_zmq
 import dquality.common.containers as containers
 import dquality.common.constants as const
 import dquality.common.utilities as utils

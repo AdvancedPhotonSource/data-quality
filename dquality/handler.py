@@ -54,11 +54,10 @@ and handles results of the checks.
 
 """
 
-from multiprocessing import Queue, Process
 import dquality.common.constants as const
 import dquality.common.qualitychecks as calc
 from dquality.common.containers import Aggregate
-import dquality.realtime.zmq_sender as cons
+import dquality.clients.zmq_client as cons
 import sys
 from collections import deque
 if sys.version[0] == '2':
@@ -123,10 +122,10 @@ def send_to_consumers(consumer_zmq, data, results):
     none
     """
     if not consumer_zmq is None:
-        if data.status == const.DATA_STATUS_DATA:
-            data.ver = not results.failed
+        # if data.status == const.DATA_STATUS_DATA:
+        #     data.ver = not results.failed
         for consumer in consumer_zmq:
-            consumer.send_to_zmq(data)
+            consumer.send_to_zmq(data, results)
 
 
 def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedbackq=None):
@@ -210,11 +209,12 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
                 type = data.type
                 results = calc.run_quality_checks(data, index, aggregates[type], limits[type], quality_checks[type])
                 send_to_consumers(consumer_zmq, data, results)
+                try:
+                    results.file_name = data.file_name
+                except:
+                    pass
                 aggregates[results.type].handle_results(results)
                 index += 1
-
-            else:
-                feedbackq.put(data.status)
 
         except queue.Empty:
             pass

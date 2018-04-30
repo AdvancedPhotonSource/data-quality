@@ -1,5 +1,5 @@
 import dquality.common.utilities as utils
-from dquality.realtime.feed import Feed
+from dquality.feeds.feed import Feed
 
 def init(config):
     conf = utils.get_config(config)

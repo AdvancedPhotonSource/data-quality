@@ -65,7 +65,7 @@ from epics import caget, PV
 from epics.ca import CAThread
 from multiprocessing import Queue
 import numpy as np
-import dquality.realtime.adapter as adapter
+import dquality.feeds.adapter as adapter
 import sys
 import time
 if sys.version[0] == '2':
@@ -190,12 +190,12 @@ class Feed:
                     logger.error('reading image raises exception, possibly the detector exposure time is too small')
             else:
                 done = True
-
         self.finish()
 
     def get_packed_data(self, data, data_type):
         return adapter.pack_data(data, data_type)
-    
+
+
     def on_change(self, pvname=None, **kws):
         """
         A callback method that activates when a frame counter of area detector changes.
@@ -365,4 +365,5 @@ class Feed:
             self.cntr_pv.clear_callbacks()
         except:
             pass
+
 

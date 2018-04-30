@@ -1,14 +1,8 @@
-from multiprocessing import Lock
 import dquality.common.constants as const
 from multiprocessing import Process
 import importlib
 from os import path
 import sys
-import dquality.realtime.pv_feedback_driver as drv
-if sys.version[0] == '2':
-    import thread as thread
-else:
-    import _thread as thread
 
 
 class Result:
@@ -41,139 +35,13 @@ class Data:
     """
     This class is a container of data.
     """
-    def __init__(self, status, slice=None, type=None, acq_time=None, text=None):
+    def __init__(self, status, slice=None, type=None, **kwargs):
         self.status = status
         if status == const.DATA_STATUS_DATA:
             self.slice = slice
             self.type = type
-            if acq_time is not None:
-                self.acq_time = acq_time
-            if text is not None:
-                self.text = text
-
-
-class Feedback:
-    """
-    This class is a container of real-time feedback related information.
-    """
-    def __init__(self, feedback_type, ):
-        """
-        Constructor
-
-        Parameters
-        ----------
-        feedback_type : list
-            a list of configured feedbac types. Possible options: console, log, and pv
-        """
-        self.feedback_type = feedback_type
-
-    def set_feedback_pv(self, feedback_pvs, detector):
-        """
-        This function sets feedback_pvs, and detector fields.
-
-        Parameters
-        ----------
-        feedback_pvs : list
-            a list of feedback process variables names, for each data type combination with the
-            applicable quality check
-        detector : str
-            a pv name of the detector
-        """
-        self.feedback_pvs = feedback_pvs
-        self.detector = detector
-
-    def set_logger(self, logger):
-        """
-        This function sets logger.
-
-        Parameters
-        ----------
-        logger : Logger
-            an instance of Logger
-        """
-        self.logger = logger
-
-    def set_driver(self, driver):
-        """
-        This function sets driver.
-
-        Parameters
-        ----------
-        driver : FbDriver
-            an instance of FbDriver
-        """
-        self.driver = driver
-
-    def write_to_pv(self, pv, res, index, error, text=None):
-        """
-        This function calls write method on driver field to update pv.
-
-        Parameters
-        ----------
-        pv : str
-            a name of the pv, contains information about the data type and quality check (i.e. data_white_mean)
-        index : int
-            index of failed frame
-        """
-        self.driver.write(pv, res, index, error, text)
-
-    def quality_feedback(self, feedbackq):
-        """
-        This function provides feedback as defined by the feedback_type in a real time.
-
-        If the feedback type contains pv type, this function creates server and initiates driver handling the feedback
-        pvs.It dequeues results from the 'feedbackq' queue and processes all feedback types that have been configured.
-        It will stop processing the queue when it dequeues data indicating end status.
-
-        Parameters
-        ----------
-        feedbackq : Queue
-            a queue that will deliver Result objects of failed quality check
-
-        Returns
-        -------
-        none
-        """
-        if const.FEEDBACK_PV in self.feedback_type:
-            server = drv.FbServer()
-            driver = server.init_driver(self.detector, self.feedback_pvs)
-            thread.start_new_thread(server.activate_pv, ())
-            self.set_driver(driver)
-
-        evaluating = True
-        while evaluating:
-            results = feedbackq.get()
-
-            if results == const.DATA_STATUS_END:
-                evaluating = False
-            else:
-                try:
-                    text = results.text
-                except:
-                    text = None
-
-                if not const.FEEDBACK_FULL in self.feedback_type:
-                    if results.failed:
-                        for result in results.results:
-                            if result.error != 0:
-                                if const.FEEDBACK_CONSOLE in self.feedback_type:
-                                    print ('failed frame ' + str(results.index) + ' result of ' +
-                                        result.quality_id + ' is ' + str(result.res))
-                                if const.FEEDBACK_LOG in self.feedback_type:
-                                    self.logger.info('failed frame ' + str(results.index) + ' result of ' +
-                                        result.quality_id + ' is ' + str(result.res))
-                                if const.FEEDBACK_PV in self.feedback_type:
-                                    self.write_to_pv(results.type + '_' + result.quality_id, result.res, results.index, result.error,
-                                                     text)
-                elif const.FEEDBACK_PV in self.feedback_type:
-                    if results.failed:
-                        if results.failed:
-                            for result in results.results:
-                                if result.error != 0:
-                                    self.write_to_pv(results.type + '_' + result.quality_id, result.res, results.index, result.error,
-                                                     text)
-                    else:
-                        self.write_to_pv('STAT', 0, results.index, const.NO_ERROR, text)
+            for key in kwargs:  # styles is a regular dictionary
+                setattr(self, key, kwargs[key])
 
 
 class Aggregate:

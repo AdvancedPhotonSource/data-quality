@@ -3,7 +3,7 @@ import os
 import signal
 import sys
 from os.path import expanduser
-import dquality.realtime.real_time as real
+import dquality.real_time as real
 import dquality.common.constants as const
 import threading
 
@@ -56,7 +56,6 @@ def receive(conn):
     -------
     none
     """
-
     while not conn.interrupted:
         # print ('waiting')
         msg = conn.socket.recv_json()

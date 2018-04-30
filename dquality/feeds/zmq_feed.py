@@ -69,6 +69,7 @@ import sys
 import json
 import dquality.common.utilities as utils
 import dquality.common.constants as const
+import dquality.clients.feedback as fb
 import dquality.common.containers as containers
 import dquality.handler as handler
 
@@ -282,7 +283,7 @@ def verify(config):
     """
     logger, limits, quality_checks, feedback, report_type, consumers, zmq_host, zmq_rcv_port, detector = init(config)
 
-    feedback_obj = containers.Feedback(feedback)
+    feedback_obj = fb.Feedback(feedback)
     if const.FEEDBACK_LOG in feedback:
         feedback_obj.set_logger(logger)
 
