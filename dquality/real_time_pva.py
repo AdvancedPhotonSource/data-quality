@@ -60,14 +60,13 @@ This module requires configuration file with the following parameters:
 
 from multiprocessing import Process, Queue
 import json
+import time
 import sys
 import dquality.common.utilities as utils
-import dquality.common.report as report
-from dquality.feeds.pv_feed import Feed
+from dquality.feeds.pva_feed import Feed
 import dquality.common.constants as const
 import dquality.clients.fb_client.feedback as fb
 import dquality.feeds.adapter as adapter
-from dquality.feeds.pv_feed_decorator import FeedDecorator
 
 
 __author__ = "Barbara Frosik"
@@ -117,6 +116,12 @@ def init(config):
         print ('configuration file is missing')
         exit(-1)
 
+    try:
+        pva_name = conf['pva_name']
+    except KeyError:
+        print ('pva_name not configured')
+        exit(-1)
+
     logger = utils.get_logger(__name__, conf)
 
     limitsfile = utils.get_file(conf, 'limits', logger)
@@ -143,32 +148,16 @@ def init(config):
         feedback = None
 
     try:
-        report_type = conf['report_type']
-    except KeyError:
-        report_type = const.REPORT_FULL
-
-    try:
         consumers = conf['zmq_snd_port']
     except KeyError:
         consumers = None
 
-    try:
-        decor_conf = conf['decor']
-        decor_map = {}
-        for entry in decor_conf:
-            entry = entry.split('>')
-            decor_map[entry[0].strip()] = entry[1].strip()
-        if len(decor_map) == 0:
-            decor_map = None
-    except KeyError:
-        decor_map = None
-
-    return logger, limits, quality_checks, feedback, report_type, consumers, decor_map
+    return logger, limits, quality_checks, feedback, consumers, pva_name
 
 
 class RT:
 
-    def verify(self, config, report_file=None, sequence = None):
+    def verify(self, config):
         """
         This function starts real time verification process according to the given configuration.
 
@@ -192,7 +181,7 @@ class RT:
         boolean
 
         """
-        logger, limits, quality_checks, feedback, report_type, consumers, decor_map = init(config)
+        logger, limits, quality_checks, feedback, consumers, pva_name = init(config)
         no_frames, aggregate_limit, detector = adapter.parse_config(config)
 
         # init the pv feedback
@@ -201,38 +190,22 @@ class RT:
             feedbackq = Queue()
             feedback_pvs = utils.get_feedback_pvs(quality_checks)
             args = {'feedback_pvs':feedback_pvs, 'detector':detector}
-            #args = {'detector':detector}
+
             feedback_obj = fb.Feedback(feedbackq, feedback, **args)
             if const.FEEDBACK_LOG in feedback:
                 feedback_obj.set_logger(logger)
 
-            p = Process(target=feedback_obj.deliver, args=())
-            p.start()
+            self.p = Process(target=feedback_obj.deliver, args=())
+            self.p.start()
 
-        aggregateq = Queue()
+        self.feed = Feed(pva_name)
 
-        # address the special cases of quality checks when additional arguments are required
-        if decor_map is None:
-            self.feed = Feed()
-        else:
-            self.feed = FeedDecorator(decor_map, detector)
-
-        aggregate_limit = no_frames
-        print 'feedbackq', feedbackq
-        args = limits, aggregateq, quality_checks, aggregate_limit, consumers, feedbackq, detector
-        ack = self.feed.feed_data(no_frames, detector, logger, sequence, *args)
-        if ack == 1:
-            bad_indexes = {}
-
-            aggregate = aggregateq.get()
-
-            if report_file is not None:
-                report.report_results(logger, aggregate, None, report_file, report_type)
-            report.add_bad_indexes(aggregate, bad_indexes)
-
-            return bad_indexes
+        args = limits, None, quality_checks, None, consumers, feedbackq
+        self.feed.feed_data(no_frames, logger, *args)
 
 
     def finish(self):
-        self.feed.finish()
+        self.feed.stop_feed()
+        time.sleep(1)
+        self.p.terminate()
 

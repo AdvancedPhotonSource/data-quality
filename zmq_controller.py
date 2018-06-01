@@ -3,7 +3,7 @@ import os
 import signal
 import sys
 from os.path import expanduser
-import dquality.real_time as real
+import dquality.real_time_pv as real
 import dquality.common.constants as const
 import threading
 
@@ -57,11 +57,9 @@ def receive(conn):
     none
     """
     while not conn.interrupted:
-        # print ('waiting')
         msg = conn.socket.recv_json()
         key = msg.get("key")
         if key == "start_ver":
-            # print ('starting ver')
             detector = msg["detector"]
             home = expanduser("~")
             conf = os.path.join(home, '.dquality', detector)

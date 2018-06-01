@@ -66,6 +66,7 @@ from epics.ca import CAThread
 from multiprocessing import Queue
 import numpy as np
 import dquality.feeds.adapter as adapter
+import dquality.common.constants as const
 import sys
 import time
 if sys.version[0] == '2':
@@ -160,10 +161,13 @@ class Feed:
         #     self.exitq.put('exit')
 
         types =  build_type_map()
-        done = False
+        self.done = False
         frame_index = 0
-        while not done:
-            current_counter = self.thread_dataq.get()
+        while not self.done:
+            try:
+                current_counter = self.thread_dataq.get(timeout = 1)
+            except tqueue.Empty:
+                continue
             if self.no_frames < 0 or current_counter < self.no_frames:
                 try:
                     data = np.array(caget(data_pv))
@@ -186,10 +190,10 @@ class Feed:
                             verify_sequence(logger, data_type)
                 except:
                     self.finish()
-                    done = True
+                    self.done = True
                     logger.error('reading image raises exception, possibly the detector exposure time is too small')
             else:
-                done = True
+                self.done = True
         self.finish()
 
     def get_packed_data(self, data, data_type):
@@ -360,7 +364,8 @@ class Feed:
 
 
     def finish(self):
-        self.process_dataq.put(adapter.pack_data(None, "end"))
+        self.process_dataq.put(adapter.pack_data(None, const.DATA_STATUS_END))
+        self.done = True
         try:
             self.cntr_pv.clear_callbacks()
         except:

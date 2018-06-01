@@ -52,7 +52,7 @@ To use Please make sure the installation :ref:`pre-requisite-reference-label` ar
 """
 
 import json
-import dquality.real_time as real
+import dquality.real_time_pv as real
 import dquality.feeds.zmq_receiver as rec
 
 

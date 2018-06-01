@@ -49,127 +49,96 @@
 """
 Please make sure the installation :ref:`pre-requisite-reference-label` are met.
 
-This module contains classes handling real time feedback of the quality results via process variables.
-
+This module feeds the data coming from detector to a process using queue.
 """
-import dquality.clients.fb_client.pv_feedback as pvfb
-from pcaspy import SimpleServer, Driver
-import sys
-if sys.version[0] == '2':
-    import thread as thread
-else:
-    import _thread as thread
+
+from multiprocessing import Queue
+import numpy as np
+import dquality.feeds.adapter as adapter
+import dquality.common.constants as const
 
 
-class PV_FB_12(pvfb.PV_FB):
-    def __init__(self, **kwargs):
-        super(PV_FB_12, self).__init__(**kwargs)
+__author__ = "Barbara Frosik"
+__copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
+__docformat__ = 'restructuredtext en'
+__all__ = ['start_feed',
+           'stop_feed'
+           'on_change']
 
 
-    def start_driver(self):
-        server = FbServer_12()
-        driver = server.init_driver(self.detector, self.feedback_pvs)
-        thread.start_new_thread(server.activate_pv, ())
-        self.driver = driver
-
-
-class FbDriver_12(pvfb.FbDriver):
+class Feed:
     """
-    This class is a driver that overrites write method.
-
+    This class reads frames in a real time, and delivers to consuming process.
     """
-    def __init__(self, **kwargs):
+
+    def __init__(self, pva_name):
         """
         Constructor
-
-        Parameters
-        ----------
-        counters : dict
-            a dictionary where a key is pv (one for data type and quality method) and value is the number of
-            failed frames
-
         """
-        super(FbDriver_12, self).__init__()
+        # for communication with pvaccess - receiving data
+        self.chan = pvaccess.Channel(pva_name)
+        x, y = self.chan.get('field()')['dimension']
+        self.x = x['size']
+        self.y = y['size']
+        self.counter = -1
+
+        # for communication with handler - delivering data
+        self.dataq = Queue()
 
 
-    def write(self, results):
-        """
-        This function override write method from Driver.
+    def start_feed(self):
+        self.chan.subscribe('update', self.on_change)
+        self.chan.startMonitor("value,attribute,uniqueId")
 
-        It sets the 'index' pv to the index value, increments count of failing frames for the data type and quality
-        check indicated by pv, and sets the 'counter' pv to the new counter value.
 
-        Parameters
-        ----------
-        pv : str
-            a name of the pv, contains information about the data type and quality check (i.e. data_white_mean)
-        index : int
-            index of failed frame
+    def stop_feed(self):
+        data = adapter.pack_data(None, const.DATA_STATUS_END)
+        self.dataq.put(data)
+        self.chan.stopMonitor()
+        self.chan.unsubscribe('update')
 
-        Returns
-        -------
-        status : boolean
-            Driver status
 
-        """
-        status = True
-        text = results.file_name
-        if results.failed:
-            for result in results.results:
-                if result.error != 0:
-                    qc = results.type + '_' + result.quality_id
-                    msg = text + ' failed ' + qc + ' with result ' + str(result.res)
-                    self.setParam('STAT', msg)
+    def on_change(self, v):
+        self.no_frames_left = self.no_frames_left - 1
+        if self.no_frames_left == 0:
+            self.stop_feed()
         else:
-            msg = text + ' verification pass'
-            self.setParam('STAT', msg)
+            if self.counter == -1:
+                self.counter = v['uniqueId'] - 1  # self.counter keeps previous id
+                img_data = v['value'][0]['ubyteValue']
+                # compute black point and gain from first frame
+                self.black, white = np.percentile(img_data, [0.01, 99.99])
+                self.gain = 255 / (white - self.black)
+                labels = [item["name"] for item in v["attribute"]]
+                self.theta_key = labels.index("SampleRotary")
 
-        self.updatePVs()
-        return status
+            img_data = v['value'][0]['ubyteValue']
+            img_data = (img_data - self.black) * self.gain
+            img_data = np.clip(img_data, 0, 255).astype('uint8')
+
+            # resize to get a 2D array from 1D data structure
+            img_data = np.resize(img_data, (self.y, self.x))
+
+            theta = v["attribute"][self.theta_key]["value"][0]["value"]
+
+            counter = v['uniqueId']
+            self.counter += 1
+            while self.counter < counter:
+                data = adapter.pack_data(None, const.DATA_STATUS_MISSING)
+                self.dataq.put(data)
+                self.counter += 1
+
+            args = {}
+            args["SampleRotary"] = theta
+            data = adapter.pack_data(img_data, 'data', **args)
+            self.dataq.put(data)
 
 
-class FbServer_12(pvfb.FbServer):
-    """
-    This class is a server that controls the FbDriver.
-
-    """
-
-    def __init__(self):
-        super(FbServer_12, self).__init__()
-
-
-    def init_driver(self, detector, feedback_pvs):
+    def feed_data(self, no_frames, logger, *args):
         """
-        This function initiates the driver.
-
-        It creates process variables for the requested lidt of pv names. For each data type combination with the
-        applicable quality check two pvs are created: one holding frame index, and one holding count of failed frames.
-        It creates FbDriver instance and returns it to the calling function.
-
-        Parameters
-        ----------
-        detector : str
-            a pv name of the detector
-        feedback_pvs : list
-            a list of feedback process variables names, for each data type combination with the
-            applicable quality check
-
-        Returns
-        -------
-        driver : FbDriver
-            FbDriver instance
-
+        This function is called by a client to start the process.
         """
-        prefix = detector + ':'
-        pvdb = {}
+        self.no_frames_left = no_frames
+        adapter.start_process(self.dataq, logger, *args)
+        self.start_feed()
 
-        pvdb['STAT'] = {
-                            'type': 'char',
-                            'count' : 300,
-                            'value' : 'status'
-                        }
-
-        self.server.createPV(prefix, pvdb)
-
-        driver = FbDriver_12()
-        return driver

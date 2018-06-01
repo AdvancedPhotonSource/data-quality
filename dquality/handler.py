@@ -122,10 +122,13 @@ def send_to_consumers(consumer_zmq, data, results):
     none
     """
     if not consumer_zmq is None:
-        # if data.status == const.DATA_STATUS_DATA:
-        #     data.ver = not results.failed
-        for consumer in consumer_zmq:
-            consumer.send_to_zmq(data, results)
+        # for consumer in consumer_zmq:
+        #     consumer.send_to_zmq(data, results)
+        if data.status == const.DATA_STATUS_DATA:
+            data.ver = not results.failed
+            data.image_number = results.index
+            for consumer in consumer_zmq:
+                consumer.send_to_zmq(data)
 
 
 def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedbackq=None):
