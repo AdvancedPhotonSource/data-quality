@@ -183,6 +183,7 @@ def sum(**kws):
     this_limits = limits['sum']
     res = data.slice.sum()
     result = find_result(res, 'sum', this_limits)
+
     return result
 
 

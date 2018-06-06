@@ -29,7 +29,7 @@ class Window(QtGui.QMainWindow):
         super(Window, self).__init__()
         # set parameters from config file
         self.detector = default_det
-        self.conf_map, self.feedback_pvs, self.quality_checks = self.get_ver_params()
+        self.conf_map, self.quality_checks = self.get_ver_params()
 
         self.ui = uic.loadUi(ui)
         self.ui.show()
@@ -46,7 +46,6 @@ class Window(QtGui.QMainWindow):
         self.ui.rate_ll.returnPressed.connect(lambda: self.set_limit(self.ui.rate_ll, 'rate_sat','low_limit'))
         self.ui.rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.rate_hl, 'rate_sat','high_limit'))
 
-        self.feedback_pvs = self.get_feedback_pvs()
         self.setEpicsQualityFeedbackUpdate()
 
         self.verifier_on = 0
@@ -96,7 +95,7 @@ class Window(QtGui.QMainWindow):
             restart = True
 
         self.detector = str(self.ui.det_name.text())
-        self.conf_map, self.feedback_pvs, self.quality_checks = self.get_ver_params()
+        self.conf_map, self.quality_checks = self.get_ver_params()
         self.show_limits()
 
         if restart:
@@ -118,23 +117,6 @@ class Window(QtGui.QMainWindow):
             self.ui.rate_ll.setText(str(self.limits['rate_sat']['low_limit']))
             self.ui.rate_hl.setText(str(self.limits['rate_sat']['high_limit']))
         limitsfile.close()
-
-
-    def get_feedback_pvs(self):
-        try:
-            qcfile = self.conf_map['quality_checks']
-        except KeyError:
-            qcfile = None
-        with open(qcfile) as qc_file:
-            quality_checks = json.loads(qc_file.read())
-        qc_file.close()
-        feedback_pvs = []
-        for type in quality_checks:
-            qcs = quality_checks[type]
-            for qc in qcs:
-                qc_str = type + '_' + qc + '_ctr'
-                feedback_pvs.append(qc_str)
-        return feedback_pvs
 
 
     def set_limit(self, le_limit, key1, key2):
@@ -172,6 +154,8 @@ class Window(QtGui.QMainWindow):
         if not pvname is None:
             if "STAT" in pvname:
                 msg = epics.caget(self.detector+':STAT', as_string=True)
+                if msg is None:
+                    return
                 failed = False
                 if msg.endswith('status'):
                     pass
@@ -229,13 +213,7 @@ class Window(QtGui.QMainWindow):
         with open(qcfile) as qc_file:
             quality_checks = json.loads(qc_file.read())
         qc_file.close()
-        feedback_pvs = []
-        for type in quality_checks:
-            qcs = quality_checks[type]
-            for qc in qcs:
-                qc_str = type + '_' + qc + '_ctr'
-                feedback_pvs.append(qc_str)
-        return conf_map, feedback_pvs, quality_checks
+        return conf_map, quality_checks
 
 
 if __name__ == "__main__":

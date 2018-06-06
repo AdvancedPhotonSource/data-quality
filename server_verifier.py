@@ -55,7 +55,7 @@ all frames are collected or can be stopped by a remote connection.
 
 from multiprocessing import Process
 from multiprocessing.managers import SyncManager
-import dquality.real_time as real
+import dquality.real_time_pv as real
 import argparse
 import json
 import sys

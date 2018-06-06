@@ -209,3 +209,5 @@ class RT:
         time.sleep(1)
         self.p.terminate()
 
+#rt = RT()
+#rt.verify('test/dqconfig.ini')

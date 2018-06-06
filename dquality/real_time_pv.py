@@ -235,8 +235,12 @@ class RT:
 
 
     def finish(self):
-        self.feed.finish()
-        time.sleep(1)
+        try:
+            self.feed.finish()
+            time.sleep(1)
+        except:
+            pass
+
         try:
             self.p.terminate()
         except:

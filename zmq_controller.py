@@ -6,6 +6,7 @@ from os.path import expanduser
 import dquality.real_time_pv as real
 import dquality.common.constants as const
 import threading
+import time
 
 
 class zmq_server():
@@ -38,9 +39,9 @@ class zmq_server():
         """
         Destroys Context. This also closes socket associated with the context.
         """
+        self.interrupted = True
         self.socket.close()
         self.context.destroy()
-        self.interrupted = True
 
 
 def receive(conn):
@@ -85,6 +86,9 @@ def receive(conn):
 
 if __name__ == "__main__":
     def signal_handler(signal, frame):
+        if not conn.ver is None:
+            conn.ver.finish()
+            time.sleep(1)
         conn.destroy()
         sys.exit(0)
 

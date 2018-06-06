@@ -52,8 +52,8 @@ Please make sure the installation :ref:`pre-requisite-reference-label` are met.
 This module contains classes handling real time feedback of the quality results via process variables.
 
 """
+import time
 import dquality.clients.fb_client.pv_feedback as pvfb
-from pcaspy import SimpleServer, Driver
 import sys
 if sys.version[0] == '2':
     import thread as thread
@@ -71,6 +71,20 @@ class PV_FB_12(pvfb.PV_FB):
         driver = server.init_driver(self.detector, self.feedback_pvs)
         thread.start_new_thread(server.activate_pv, ())
         self.driver = driver
+
+
+    def write_to_pv(self, results):
+        text = results.file_name
+        if results.failed:
+            for result in results.results:
+                if result.error != 0:
+                    qc = results.type + '_' + result.quality_id
+                    msg = text + ' failed ' + qc + ' with result ' + str(result.res)
+
+                    self.driver.write(msg)
+        else:
+            msg = text + ' verification pass'
+            self.driver.write(msg)
 
 
 class FbDriver_12(pvfb.FbDriver):
@@ -92,7 +106,7 @@ class FbDriver_12(pvfb.FbDriver):
         super(FbDriver_12, self).__init__()
 
 
-    def write(self, results):
+    def write(self, msg):
         """
         This function override write method from Driver.
 
@@ -113,17 +127,7 @@ class FbDriver_12(pvfb.FbDriver):
 
         """
         status = True
-        text = results.file_name
-        if results.failed:
-            for result in results.results:
-                if result.error != 0:
-                    qc = results.type + '_' + result.quality_id
-                    msg = text + ' failed ' + qc + ' with result ' + str(result.res)
-                    self.setParam('STAT', msg)
-        else:
-            msg = text + ' verification pass'
-            self.setParam('STAT', msg)
-
+        self.setParam('STAT', msg)
         self.updatePVs()
         return status
 

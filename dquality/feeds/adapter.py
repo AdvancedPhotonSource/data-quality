@@ -145,8 +145,8 @@ def parse_config(config):
     try:
         detector = conf['detector']
     except KeyError:
-        print ('configuration error: detector parameter not configured.')
-        return None
+        print ('detector parameter not configured.')
+        detector = None
 
     return int(no_frames), aggregate_limit, detector
 

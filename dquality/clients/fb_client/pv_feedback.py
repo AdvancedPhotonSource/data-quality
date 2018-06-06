@@ -75,7 +75,12 @@ class PV_FB(object):
 
 
     def write_to_pv(self, results):
-        self.driver.write(results)
+        text = results.file_name
+        if results.failed:
+            for result in results.results:
+                if result.error != 0:
+                    pv = results.type + '_' + result.quality_id
+                    self.driver.write(pv, result.res)
 
 
 class FbDriver(Driver):
@@ -108,7 +113,7 @@ class FbDriver(Driver):
         self.updatePVs()
 
 
-    def write(self, results):
+    def write(self, pv, result):
         """
         This function override write method from Driver.
 
@@ -129,15 +134,11 @@ class FbDriver(Driver):
 
         """
         status = True
-        if results.failed:
-            for result in results.results:
-                if result.error != 0:
-                    pv = results.type + '_' + result.quality_id
-                    self.setParam(pv+'_res', result)
-                    self.counters[pv] += 1
-                    # this method is called on failed quality check, increase counter for this pv
-                    self.setParam(pv+'_ctr', self.counters[pv])
-            self.updatePVs()
+        self.setParam(pv+'_res', result)
+        self.counters[pv] += 1
+        # this method is called on failed quality check, increase counter for this pv
+        self.setParam(pv+'_ctr', self.counters[pv])
+        self.updatePVs()
         return status
 
 

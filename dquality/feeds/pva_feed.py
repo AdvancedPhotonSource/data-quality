@@ -112,7 +112,8 @@ class Feed:
                 labels = [item["name"] for item in v["attribute"]]
                 self.theta_key = labels.index("SampleRotary")
 
-            img_data = v['value'][0]['ubyteValue']
+            #img_data = v['value'][0]['ubyteValue']
+            img_data = v['value'][0]['ushortValue']
             img_data = (img_data - self.black) * self.gain
             img_data = np.clip(img_data, 0, 255).astype('uint8')
 
