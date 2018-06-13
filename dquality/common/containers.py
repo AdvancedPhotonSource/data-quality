@@ -59,7 +59,7 @@ class Aggregate:
 
     """
 
-    def __init__(self, data_type, quality_checks, aggregate_limit, feedbackq = None):
+    def __init__(self, data_type, quality_checks, aggregate_limit=0, feedbackq = None):
         """
         Constructor
 

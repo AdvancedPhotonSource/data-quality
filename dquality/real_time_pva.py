@@ -58,15 +58,11 @@ This module requires configuration file with the following parameters:
 'args', optional, list of process specific parameters, they need to be parsed to the desired format in the wrapper
 """
 
-from multiprocessing import Process, Queue
 import json
-import time
+import signal
 import sys
 import dquality.common.utilities as utils
 from dquality.feeds.pva_feed import Feed
-import dquality.common.constants as const
-import dquality.clients.fb_client.feedback as fb
-import dquality.feeds.adapter as adapter
 
 
 __author__ = "Barbara Frosik"
@@ -104,11 +100,14 @@ def init(config):
         a list of strings defining real time feedback of quality checks errors. Currently supporting 'PV', 'log', and
         'console'
 
-    report_type : int
-        report type; currently supporting 'none', 'error', and 'full'
+    zmq_snd_port : int
+        a port used to send the verified data out
 
-    consumers : dict
-        a dictionary parsed from json file representing consumers
+    pva_name : str
+        pvaccess name
+
+    detector : str
+        detector name
 
     """
     conf = utils.get_config(config)
@@ -137,7 +136,6 @@ def init(config):
 
     with open(qcfile) as qc_file:
         dict = json.loads(qc_file.read())
-    #quality_checks = utils.get_quality_checks(dict)
     quality_checks = dict
 
     try:
@@ -148,11 +146,17 @@ def init(config):
         feedback = None
 
     try:
-        consumers = conf['zmq_snd_port']
+        zmq_snd_port = conf['zmq_snd_port']
     except KeyError:
-        consumers = None
+        zmq_snd_port = None
 
-    return logger, limits, quality_checks, feedback, consumers, pva_name
+    try:
+        detector = conf['detector']
+    except KeyError:
+        print ('detector parameter not configured.')
+        detector = None
+
+    return logger, limits, quality_checks, feedback, zmq_snd_port, pva_name, detector
 
 
 class RT:
@@ -161,53 +165,36 @@ class RT:
         """
         This function starts real time verification process according to the given configuration.
 
-        This function reads configuration and initiates variables accordingly.
-        It creates a Feed instance and starts data_feed and waits to receive results in aggregateq.
-        The results are then written into a report file.
-
         Parameters
         ----------
         conf : str
             configuration file name, including path
 
-        report_file : file
-            a file where the report will be written, defaulted to None, if no report wanted
-
-        sequence : list or int
-            information about data sequence or number of frames
-
         Returns
         -------
-        boolean
+        none
 
         """
-        logger, limits, quality_checks, feedback, consumers, pva_name = init(config)
-        no_frames, aggregate_limit, detector = adapter.parse_config(config)
+        logger, limits, quality_checks, feedback, zmq_snd_port, pva_name, detector = init(config)
 
-        # init the pv feedback
-        feedbackq = None
-        if not feedback is None:
-            feedbackq = Queue()
-            feedback_pvs = utils.get_feedback_pvs(quality_checks)
-            args = {'feedback_pvs':feedback_pvs, 'detector':detector}
-
-            feedback_obj = fb.Feedback(feedbackq, feedback, **args)
-            if const.FEEDBACK_LOG in feedback:
-                feedback_obj.set_logger(logger)
-
-            self.p = Process(target=feedback_obj.deliver, args=())
-            self.p.start()
-
-        self.feed = Feed(pva_name)
-
-        args = limits, None, quality_checks, None, consumers, feedbackq
-        self.feed.feed_data(no_frames, logger, *args)
+        self.feed = Feed(logger, limits, quality_checks, feedback, zmq_snd_port, pva_name, detector)
+        self.feed.feed_data()
 
 
     def finish(self):
-        self.feed.stop_feed()
-        time.sleep(1)
-        self.p.terminate()
+        """
+        This function gracefully terminates the pvaccess feed and it's clients
 
-#rt = RT()
-#rt.verify('test/dqconfig.ini')
+        """
+        print ('finish')
+        self.feed.stop_feed()
+
+
+def signal_handler(signal, frame):
+    rt.finish()
+
+rt = RT()
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+rt.verify('/home/phoebus/BFROSIK/.dquality/BBF1/dqconfig.ini')
