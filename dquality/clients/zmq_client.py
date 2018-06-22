@@ -109,10 +109,16 @@ class zmq_sen():
             self.socket.send_json(
                 dict(
                     key="end",
-                    document="... see next message ...",
+                    document="... end of transmission ...",
                 ))
-            interrupted = True
             self.context.destroy()
+        if data.status == const.DATA_STATUS_DIM:
+            self.socket.send_json(
+                dict(
+                    key="dim",
+                    dim_x=data.dim_x,
+                    dim_y=data.dim_y,
+                ))
         else:
             slice = data.slice
             self.socket.send_json(

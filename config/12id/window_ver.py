@@ -41,10 +41,10 @@ class Window(QtGui.QMainWindow):
 
         self.ui.frame_sum_ll.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sum_ll, 'sum','low_limit'))
         self.ui.frame_sum_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sum_hl, 'sum','high_limit'))
-        self.ui.point_sat_hl.returnPressed.connect(lambda: self.set_limit(self.ui.point_sat_hl, 'sat','high_limit'))
-        self.ui.frame_sat_points_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sat_points_hl, 'frame_sat','high_limit'))
-        self.ui.rate_ll.returnPressed.connect(lambda: self.set_limit(self.ui.rate_ll, 'rate_sat','low_limit'))
-        self.ui.rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.rate_hl, 'rate_sat','high_limit'))
+        self.ui.point_sat_hl.returnPressed.connect(lambda: self.set_limit(self.ui.point_sat_hl, 'point_sat','high_limit'))
+        self.ui.frame_sat_pts_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sat_pts_hl, 'frame_sat_pts','high_limit'))
+        self.ui.point_sat_rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.point_sat_rate_hl, 'point_sat_rate','high_limit'))
+        self.ui.frame_sat_pts_rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sat_pts_rate_hl, 'frame_sat_cnt_rate','high_limit'))
 
         self.setEpicsQualityFeedbackUpdate()
 
@@ -112,10 +112,10 @@ class Window(QtGui.QMainWindow):
             self.limits = json.loads(limitsfile.read())['data']
             self.ui.frame_sum_ll.setText(str(self.limits['sum']['low_limit']))
             self.ui.frame_sum_hl.setText(str(self.limits['sum']['high_limit']))
-            self.ui.point_sat_hl.setText(str(self.limits['sat']['high_limit']))
-            self.ui.frame_sat_points_hl.setText(str(self.limits['frame_sat']['high_limit']))
-            self.ui.rate_ll.setText(str(self.limits['rate_sat']['low_limit']))
-            self.ui.rate_hl.setText(str(self.limits['rate_sat']['high_limit']))
+            self.ui.point_sat_hl.setText(str(self.limits['point_sat']['high_limit']))
+            self.ui.frame_sat_pts_hl.setText(str(self.limits['frame_sat_pts']['high_limit']))
+            self.ui.point_sat_rate_hl.setText(str(self.limits['point_sat_rate']['high_limit']))
+            self.ui.frame_sat_pts_rate_hl.setText(str(self.limits['frame_sat_cnt_rate']['high_limit']))
         limitsfile.close()
 
 

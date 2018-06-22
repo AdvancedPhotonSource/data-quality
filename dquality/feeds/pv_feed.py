@@ -63,9 +63,10 @@ sequence. (i.e. [('data_dark', 4), ('data_white', 14), ('data', 614), ('data_dar
 
 from epics import caget, PV
 from epics.ca import CAThread
-from multiprocessing import Queue
+from multiprocessing import Queue, Process
 import numpy as np
 import dquality.feeds.adapter as adapter
+import dquality.handler as handler
 import dquality.common.constants as const
 import sys
 import time
@@ -108,7 +109,7 @@ class Feed:
         self.ctr = 0
         self.sequence = None
         self.sequence_index = 0
-        self.cntr_pv = None
+        self.callback_pv = None
 
 
     def deliver_data(self, data_pv, frame_type_pv, logger):
@@ -217,18 +218,22 @@ class Feed:
         -------
         None
         """
-
-        current_ctr = kws['value']
-        #on first callback adjust the values
-        if self.ctr == 0:
-            self.ctr = current_ctr
-            if self.no_frames >= 0:
-                self.no_frames += current_ctr
+        if pvname == self.counter_pv:
+            current_ctr = kws['value']
+            #on first callback adjust the values
+            if self.ctr == 0:
+                self.ctr = current_ctr
+                if self.no_frames >= 0:
+                    self.no_frames += current_ctr
+        else:
+            # if the callback is not on the counter pv, keep track of counter
+            self.ctr += 1
+            current_ctr = self.ctr
 
         self.thread_dataq.put(current_ctr)
 
 
-    def start_processes(self, counter_pv, data_pv, frame_type_pv, logger, *args):
+    def start_processes(self, counter_pv, data_pv, frame_type_pv, logger, reportq, *args, **kwargs):
         """
         This function starts processes and callbacks.
 
@@ -257,12 +262,19 @@ class Feed:
         -------
         None
         """
+        self.counter_pv = counter_pv
         data_thread = CAThread(target = self.deliver_data, args=(data_pv, frame_type_pv, logger,))
         data_thread.start()
+        p = Process(target=handler.handle_data,
+                    args=(self.process_dataq, reportq, args, kwargs,))
+        p.start()
 
-        adapter.start_process(self.process_dataq, logger, *args)
-        self.cntr_pv = PV(counter_pv)
-        self.cntr_pv.add_callback(self.on_change, index = 1)
+        try:
+            callback_pv_name = kwargs['callback_pv']
+        except KeyError:
+            callback_pv_name = counter_pv
+        self.callback_pv = PV(callback_pv_name)
+        self.callback_pv.add_callback(self.on_change, index = 1)
 
 
     def get_pvs(self, detector):
@@ -306,7 +318,7 @@ class Feed:
         return acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv
     
     
-    def feed_data(self, no_frames, detector, logger, sequence=None, *args):
+    def feed_data(self, logger, reportq, *args, **kwargs): #no_frames, detector, logger, sequence=None, *args):
         """
         This function is called by a client to start the process.
 
@@ -336,18 +348,9 @@ class Feed:
         -------
         None
         """
+        acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(kwargs['detector'])
+        self.no_frames = args[2]
 
-        acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv = self.get_pvs(detector)
-        self.no_frames = no_frames
-        # if sequence is None:
-        #     self.no_frames = no_frames
-        # elif type(sequence) is int:
-        #     self.no_frames = sequence
-        # else:
-        #     self.sequence = sequence
-        #     self.no_frames = sequence[len(sequence)-1][1] + 1
-
-        #self.start_processes(counter_pv, data_pv, frame_type_pv, logger, *args)
         test = True
 
         while test:
@@ -356,7 +359,7 @@ class Feed:
             ack =  caget(acquire_pv)
             if ack == 1:
                 test = False
-                self.start_processes(counter_pv, data_pv, frame_type_pv, logger, *args)
+                self.start_processes(counter_pv, data_pv, frame_type_pv, logger, reportq, *args, **kwargs)
             else:
                 time.sleep(.005)
 
@@ -367,7 +370,7 @@ class Feed:
         self.process_dataq.put(adapter.pack_data(None, const.DATA_STATUS_END))
         self.done = True
         try:
-            self.cntr_pv.clear_callbacks()
+            self.callback_pv.clear_callbacks()
         except:
             pass
 

@@ -1,1 +1,1 @@
-{ "data" : ["sum", "frame_sat", "rate_sat"]}
+{ "data" : ["sum", "frame_sat_pts", "frame_sat_cnt_rate"]}

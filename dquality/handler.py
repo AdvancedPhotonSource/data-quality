@@ -131,7 +131,7 @@ def send_to_consumers(consumer_zmq, data, results):
                 consumer.send_to_zmq(data)
 
 
-def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consumers=None, feedbackq=None):
+def handle_data(dataq, reportq, args, kwargs):
     """
     This function creates and initializes all variables and handles data received on a 'dataq' queue.
 
@@ -183,15 +183,18 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
     -------
     None
     """
-
-    consumer_zmq = None
-    if consumers is not None:
+    try:
+        consumers = kwargs['consumers']
         consumer_zmq = init_consumers(consumers)
+    except KeyError:
+        consumer_zmq = None
 
+    limits = args[0]
+    quality_checks = args[1]
     aggregates = {}
     types = quality_checks.keys()
     for type in types:
-        aggregates[type] = Aggregate(type, quality_checks[type], aggregate_limit, feedbackq)
+        aggregates[type] = Aggregate(type, quality_checks[type], **kwargs)
 
     interrupted = False
     index = 0
@@ -201,9 +204,12 @@ def handle_data(dataq, limits, reportq, quality_checks, aggregate_limit, consume
             if data.status == const.DATA_STATUS_END:
                 interrupted = True
                 send_to_consumers(consumer_zmq, data, const.DATA_STATUS_END)
-                if feedbackq is not None:
+                try:
+                    feedbackq = kwargs['feedbackq']
                     for _ in range(len(aggregates)):
                         feedbackq.put(const.DATA_STATUS_END)
+                except KeyError:
+                    pass
 
             elif data.status == const.DATA_STATUS_MISSING:
                 index += 1
