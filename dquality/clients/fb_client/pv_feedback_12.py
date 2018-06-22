@@ -76,15 +76,14 @@ class PV_FB_12(pvfb.PV_FB):
     def write_to_pv(self, results):
         text = results.file_name
         if results.failed:
+            msg = text + ' failed'
             for result in results.results:
                 if result.error != 0:
-                    qc = results.type + '_' + result.quality_id
-                    msg = text + ' failed ' + qc + ' with result ' + str(result.res)
-
-                    self.driver.write(msg)
+                    qc = result.quality_id
+                    msg =  msg + ' ' + qc + ' with result ' + str(result.res)
         else:
             msg = text + ' verification pass'
-            self.driver.write(msg)
+        self.driver.write(msg)
 
 
 class FbDriver_12(pvfb.FbDriver):

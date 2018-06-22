@@ -120,12 +120,16 @@ def init(config):
 
     logger = utils.get_logger(__name__, conf)
 
+    feed_args = []
+    feed_kwargs = {}
+
     limitsfile = utils.get_file(conf, 'limits', logger)
     if limitsfile is None:
         sys.exit(-1)
 
     with open(limitsfile) as limits_file:
         limits = json.loads(limits_file.read())
+    feed_args.append(limits)
 
     qcfile = utils.get_file(conf, 'quality_checks', logger)
     if qcfile is None:
@@ -133,8 +137,39 @@ def init(config):
 
     with open(qcfile) as qc_file:
         dict = json.loads(qc_file.read())
-    #quality_checks = utils.get_quality_checks(dict)
-    quality_checks = dict
+    feed_args.append(dict)
+
+    try:
+        no_frames = int(conf['no_frames'])
+    except KeyError:
+        print ('no_frames parameter not configured. Continuous mode.')
+        no_frames = -1
+    feed_args.append(no_frames)
+
+    try:
+        callback_pv = conf['callback_pv']
+        feed_kwargs['callback_pv'] = callback_pv
+    except KeyError:
+        pass
+
+    try:
+        detector = conf['detector']
+        feed_kwargs['detector'] = detector
+    except KeyError:
+        print ('detector parameter not configured.')
+        sys.exit(-1)
+
+    try:
+        consumers = conf['zmq_snd_port']
+        feed_kwargs['consumers'] = consumers
+    except KeyError:
+        pass
+
+    try:
+        aggregate_limit = int(conf['aggregate_limit'])
+    except KeyError:
+        aggregate_limit = no_frames
+    feed_kwargs['aggregate_limit'] = aggregate_limit
 
     try:
         feedback = conf['feedback_type']
@@ -142,16 +177,6 @@ def init(config):
             feedback = None
     except KeyError:
         feedback = None
-
-    try:
-        report_type = conf['report_type']
-    except KeyError:
-        report_type = const.REPORT_FULL
-
-    try:
-        consumers = conf['zmq_snd_port']
-    except KeyError:
-        consumers = None
 
     try:
         decor_conf = conf['decor']
@@ -164,7 +189,12 @@ def init(config):
     except KeyError:
         decor_map = None
 
-    return logger, limits, quality_checks, feedback, report_type, consumers, decor_map
+    try:
+        report_type = conf['report_type']
+    except KeyError:
+        report_type = const.REPORT_FULL
+
+    return feed_args, feed_kwargs, feedback, decor_map, logger, report_type
 
 
 class RT:
@@ -193,39 +223,35 @@ class RT:
         boolean
 
         """
-        logger, limits, quality_checks, feedback, report_type, consumers, decor_map = init(config)
-        no_frames, aggregate_limit, detector = adapter.parse_config(config)
+        feed_args, feed_kwargs, feedback, decor_map, logger, report_type = init(config)
 
         # init the pv feedback
-        feedbackq = None
         if not feedback is None:
             feedbackq = Queue()
-            feedback_pvs = utils.get_feedback_pvs(quality_checks)
-            args = {'feedback_pvs':feedback_pvs, 'detector':detector}
-            #args = {'detector':detector}
-            feedback_obj = fb.Feedback(feedbackq, feedback, **args)
+            feedback_pvs = utils.get_feedback_pvs(feed_args[1])
+            fb_args = {'feedback_pvs':feedback_pvs, 'detector':feed_kwargs['detector']}
+            feedback_obj = fb.Feedback(feedbackq, feedback, **fb_args)
+            # put the logger to args
             if const.FEEDBACK_LOG in feedback:
                 feedback_obj.set_logger(logger)
+            feed_kwargs['feedbackq'] = feedbackq
 
             self.p = Process(target=feedback_obj.deliver, args=())
             self.p.start()
 
-        aggregateq = Queue()
+        reportq = Queue()
 
         # address the special cases of quality checks when additional arguments are required
         if decor_map is None:
             self.feed = Feed()
         else:
-            self.feed = FeedDecorator(decor_map, detector)
+            self.feed = FeedDecorator(decor_map)
 
-        aggregate_limit = no_frames
-
-        args = limits, aggregateq, quality_checks, aggregate_limit, consumers, feedbackq
-        ack = self.feed.feed_data(no_frames, detector, logger, sequence, *args)
+        ack = self.feed.feed_data(logger, reportq, *feed_args, **feed_kwargs)
         if ack == 1:
             bad_indexes = {}
 
-            aggregate = aggregateq.get()
+            aggregate = reportq.get()
 
             if report_file is not None:
                 report.report_results(logger, aggregate, None, report_file, report_type)

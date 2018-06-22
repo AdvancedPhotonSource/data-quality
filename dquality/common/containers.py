@@ -59,7 +59,7 @@ class Aggregate:
 
     """
 
-    def __init__(self, data_type, quality_checks, aggregate_limit=0, feedbackq = None):
+    def __init__(self, data_type, quality_checks, **kwargs): #data_type, quality_checks, aggregate_limit=0, feedbackq = None):
         """
         Constructor
 
@@ -74,8 +74,15 @@ class Aggregate:
             responsible for delivering the feedback in areal time
         """
         self.data_type = data_type
-        self.feedbackq = feedbackq
-        self.aggregate_limit = aggregate_limit
+        try:
+            self.feedbackq = kwargs['feedbackq']
+        except KeyError:
+            self.feedbackq = None
+
+        try:
+            self.aggregate_limit = kwargs['aggregate_limit']
+        except KeyError:
+            self.aggregate_limit = -1
 
         self.bad_indexes = {}
         self.good_indexes = {}
