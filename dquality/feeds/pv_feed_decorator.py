@@ -10,11 +10,12 @@ class FeedDecorator(Feed):
             self.decor_map[entry] = decor[entry]
 
 
-    def get_packed_data(self, data, data_type):
+    def get_packed_data(self, data, data_type, file_name):
         args = {}
         for entry in self.decor_map:
             if entry == 'file_name':
-                full_name = caget(self.decor_map[entry], as_string=True)
+                #full_name = caget(self.decor_map[entry], as_string=True)
+                full_name = file_name
                 rev_full_name = full_name[::-1]
                 ind = rev_full_name.find('/')
                 rev_name = rev_full_name[0:ind]
@@ -26,5 +27,4 @@ class FeedDecorator(Feed):
                 args[entry] = caget(self.decor_map[entry])
 
         return adapter.pack_data(data, data_type, **args)
-
 

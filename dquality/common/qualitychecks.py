@@ -62,8 +62,8 @@ __all__ = ['find_result',
            'mean',
            'st_dev',
            'sum',
-           'frame_sat_cnt_rate',
-           'frame_sat_pts',
+           'Npix_sat_cnt_rate',
+           'Npix_sat',
            'stat_mean',
            'acc_sat',
            'run_quality_checks']
@@ -200,7 +200,7 @@ def sum(**kws):
     return result
 
 
-def frame_sat_cnt_rate(**kws):
+def Npix_sat_cnt_rate(**kws):
     """
     This method validates a sum of all intensities value of the frame.
 
@@ -236,16 +236,16 @@ def frame_sat_cnt_rate(**kws):
     # find how many pixels have saturation rate (intensity divided by acquire time) exceeding the
     # point saturation rate limit
     acq_time = data.acq_time
-    sat_high = (limits['point_sat_rate'])['high_limit']
+    sat_high = (limits['pix_sat_cnt_rate'])['high_limit']
     points = (data.slice/acq_time > sat_high).sum()
 
     # evaluate if the number of saturated points are within limit
-    this_limits = limits['frame_sat_cnt_rate']
-    result = find_result(points, 'frame_sat_cnt_rate', this_limits)
+    this_limits = limits['Npix_sat_cnt_rate']
+    result = find_result(points, 'Npix_sat_cnt_rate', this_limits)
     return result
 
 
-def frame_sat_pts(**kws):
+def Npix_sat(**kws):
     """
     This method validates saturation value of the frame.
 
@@ -270,12 +270,12 @@ def frame_sat_pts(**kws):
     data = kws['data']
 
     # find how many pixels have intensity exceeding the point saturation limit
-    sat_high = (limits['point_sat'])['high_limit']
+    sat_high = (limits['pix_sat'])['high_limit']
     points = (data.slice > sat_high).sum()
 
     # evaluate if the number of saturated points are within limit
-    this_limits = limits['frame_sat_pts']
-    result = find_result(points, 'frame_sat_pts', this_limits)
+    this_limits = limits['Npix_sat']
+    result = find_result(points, 'Npix_sat', this_limits)
     return result
 
 
@@ -369,8 +369,8 @@ def acc_sat(**kws):
 # maps the quality check ID to the function object
 function_mapper = {'mean' : mean,
                    'st_dev' : st_dev,
-                   'frame_sat_pts' : frame_sat_pts,
-                   'frame_sat_cnt_rate': frame_sat_cnt_rate,
+                   'Npix_sat' : Npix_sat,
+                   'Npix_sat_cnt_rate': Npix_sat_cnt_rate,
                    'sum': sum,
                    'stat_mean' : stat_mean,
                    'acc_sat' : acc_sat}

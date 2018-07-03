@@ -70,12 +70,11 @@ import dquality.handler as handler
 import dquality.common.constants as const
 import sys
 import time
+
 if sys.version[0] == '2':
     import Queue as tqueue
 else:
     import queue as tqueue
-
-
 
 __author__ = "Barbara Frosik"
 __copyright__ = "Copyright (c) 2016, UChicago Argonne, LLC."
@@ -86,10 +85,12 @@ __all__ = ['deliver_data',
            'get_pvs',
            'feed_data']
 
+
 class Feed:
     """
     This class reads frames in a real time using pyepics, and delivers to consuming process.
     """
+
     def __init__(self):
         """
         Constructor
@@ -106,11 +107,13 @@ class Feed:
         self.sizex = 0
         self.sizey = 0
         self.no_frames = 0
-        self.ctr = 0
         self.sequence = None
         self.sequence_index = 0
         self.callback_pv = None
-
+        self.counter_pv = None
+        self.offset = 0
+        self.ctr = None
+        self.file_name = []
 
     def deliver_data(self, data_pv, frame_type_pv, logger):
         """
@@ -126,7 +129,7 @@ class Feed:
         recorded.
         On the loop exit an 'all_data' string is enqueud into the inter-process queue, and 'exit' string is enqueued
         into the inter-thread queue, to notify the main thread of the exit event.
-    
+
         Parameters
         ----------
         data_pv : str
@@ -134,20 +137,21 @@ class Feed:
 
         frame_type_pv : str
             a PV string for the area detector data type
-    
+
         logger : Logger
             a Logger instance, typically synchronized with the consuming process logger
-    
+
         Returns
         -------
         None
         """
+
         def build_type_map():
             types = {}
             types[0] = 'data'
             types[1] = 'data_dark'
             types[2] = 'data_white'
-            types[3] = 'data' # it'd double correlation, but leave data for now
+            # types[3] = 'data' # it'd double correlation, but leave data for now
             return types
 
         def verify_sequence(logger, data_type):
@@ -155,21 +159,30 @@ class Feed:
                 self.sequence_index += 1
             planned_data_type = self.sequence[self.sequence_index][0]
             if planned_data_type != data_type:
-                logger.warning('The data type for frame number ' + str(frame_index) + ' is ' + data_type + ' but was planned ' + planned_data_type)
+                logger.warning('The data type for frame number ' + str(
+                    frame_index) + ' is ' + data_type + ' but was planned ' + planned_data_type)
 
-        # def finish():
-        #     self.process_dataq.put(pack_data(None, "end"))
-        #     self.exitq.put('exit')
-
-        types =  build_type_map()
+        types = build_type_map()
         self.done = False
         frame_index = 0
         while not self.done:
             try:
-                current_counter = self.thread_dataq.get(timeout = 1)
+                callback_item = self.thread_dataq.get(timeout=1)
+                if isinstance(callback_item, (int, long, float)):  # came from on_change function
+                    current_counter = callback_item
+                    if self.callback_pv is None:
+                        file_name = None
+                    else:
+                        if len(self.file_name) > 0:
+                            file_name = self.file_name.pop(0)
+                        else:
+                            print('race conditions')
+                else:
+                    self.file_name.append(callback_item)
+                    continue
             except tqueue.Empty:
                 continue
-            if self.no_frames < 0 or current_counter < self.no_frames:
+            if self.no_frames < 0 or current_counter < self.no_frames + 1:
                 try:
                     data = np.array(caget(data_pv))
                     data_type = types[caget(frame_type_pv)]
@@ -182,10 +195,10 @@ class Feed:
                         self.ctr = current_counter
                         data.resize(self.sizex, self.sizey)
                         if delta > 1:
-                            for i in range (1, delta):
+                            for i in range(1, delta):
                                 self.process_dataq.put(adapter.pack_data(None, "missing"))
                         frame_index += delta
-                        packed_data = self.get_packed_data(data, data_type)
+                        packed_data = self.get_packed_data(data, data_type, file_name)
                         self.process_dataq.put(packed_data)
                         if self.sequence is not None:
                             verify_sequence(logger, data_type)
@@ -197,9 +210,29 @@ class Feed:
                 self.done = True
         self.finish()
 
-    def get_packed_data(self, data, data_type):
+    def get_packed_data(self, data, data_type, file_name):
         return adapter.pack_data(data, data_type)
 
+    def acq_done(self, pvname=None, **kws):
+        """
+        A callback method that activates when a frame counter of area detector changes.
+
+        This method reads the counter value and enqueues it into inter-thread queue that will be dequeued by the
+        'deliver_data' function.
+        If it is a first read, the function adjusts counter data in the self object.
+
+        Parameters
+        ----------
+        pvname : str
+            a PV string for the area detector frame counter
+
+        Returns
+        -------
+        None
+        """
+        # if the callback is not on the counter pv, keep track of counter
+        if kws['value'] == 0:
+            self.thread_dataq.put(self.ctr + 1)
 
     def on_change(self, pvname=None, **kws):
         """
@@ -208,99 +241,122 @@ class Feed:
         This method reads the counter value and enqueues it into inter-thread queue that will be dequeued by the
         'deliver_data' function.
         If it is a first read, the function adjusts counter data in the self object.
-    
+
         Parameters
         ----------
         pvname : str
             a PV string for the area detector frame counter
-    
+
         Returns
         -------
         None
         """
-        if pvname == self.counter_pv:
-            current_ctr = kws['value']
-            #on first callback adjust the values
-            if self.ctr == 0:
-                self.ctr = current_ctr
-                if self.no_frames >= 0:
-                    self.no_frames += current_ctr
+        file_name = kws['value'][:-1]
+        file_name = ''.join(chr(i) for i in file_name)
+        self.thread_dataq.put(file_name)
+
+    def on_ctr_change(self, pvname=None, **kws):
+        """
+        A callback method that activates when a frame counter of area detector changes.
+
+        This method reads the counter value and enqueues it into inter-thread queue that will be dequeued by the
+        'deliver_data' function.
+        If it is a first read, the function adjusts counter data in the self object.
+
+        Parameters
+        ----------
+        pvname : str
+            a PV string for the area detector frame counter
+
+        Returns
+        -------
+        None
+        """
+
+        current_ctr = kws['value']
+        # on first callback adjust the values
+        if self.ctr is None:
+            self.offset = current_ctr
+            self.ctr = 0
         else:
-            # if the callback is not on the counter pv, keep track of counter
-            self.ctr += 1
-            current_ctr = self.ctr
+            current_ctr -= self.offset
+            if current_ctr > 1:
+                self.thread_dataq.put(current_ctr)
+            else:
+                self.ctr = current_ctr
 
-        self.thread_dataq.put(current_ctr)
-
-
-    def start_processes(self, counter_pv, data_pv, frame_type_pv, logger, reportq, *args, **kwargs):
+    def start_processes(self, acquire_pv, counter_pv_name, data_pv, frame_type_pv, logger, reportq, *args, **kwargs):
         """
         This function starts processes and callbacks.
 
         This is a main thread that starts thread reacting to the callback, starts the consuming process, and sets a
         callback on the frame counter PV change. The function then awaits for the data in the exit queue that indicates
         that all frames have been processed. The functin cancells the callback on exit.
-    
+
         Parameters
         ----------
         counter_pv : str
             a PV string for the area detector frame counter
-    
+
         data_pv : str
             a PV string for the area detector frame data
 
         frame_type_pv : str
             a PV string for the area detector data type
-    
+
         logger : Logger
             a Logger instance, typically synchronized with the consuming process logger
-    
+
         *args : list
             a list of arguments specific to the client process
-    
+
         Returns
         -------
         None
         """
-        self.counter_pv = counter_pv
-        data_thread = CAThread(target = self.deliver_data, args=(data_pv, frame_type_pv, logger,))
+        data_thread = CAThread(target=self.deliver_data, args=(data_pv, frame_type_pv, logger,))
         data_thread.start()
         p = Process(target=handler.handle_data,
                     args=(self.process_dataq, reportq, args, kwargs,))
         p.start()
 
+        self.counter_pv = PV(counter_pv_name)
+        self.counter_pv.add_callback(self.on_ctr_change, index=1)
+
+        self.acq_pv = PV(acquire_pv)
+        self.acq_pv.add_callback(self.acq_done, index=2)
+
         try:
             callback_pv_name = kwargs['callback_pv']
+            self.callback_pv = PV(callback_pv_name)
+            self.callback_pv.add_callback(self.on_change, as_string=True, index=3)
         except KeyError:
-            callback_pv_name = counter_pv
-        self.callback_pv = PV(callback_pv_name)
-        self.callback_pv.add_callback(self.on_change, index = 1)
-
+            pass
 
     def get_pvs(self, detector):
         """
         This function takes defined strings from configuration file and constructs PV variables that are accessed during
         processing.
-    
+
         Parameters
         ----------
         detector : str
             a string defining the first prefix in area detector, it has to match the area detector configuration
-    
+
         Returns
         -------
         acquire_pv : str
             a PV string representing acquireing state
-    
+
         counter_ pv : str
             a PV string representing frame counter
-    
+
         data_pv : str
             a PV string representing acquired data
-    
+
         sizex_pv : str
             a PV string representing x size of acquired data
-    
+
         sizey_pv : str
             a PV string representing y size of acquired data
 
@@ -308,23 +364,22 @@ class Feed:
             a PV string for the area detector data type
 
         """
-    
+
         acquire_pv = detector + ':cam1:Acquire'
-        counter_pv = detector + ':cam1:NumImagesCounter_RBV'
+        counter_pv = detector + ':cam1:ArrayCounter_RBV'
         data_pv = detector + ':image1:ArrayData'
         sizex_pv = detector + ':image1:ArraySize0_RBV'
         sizey_pv = detector + ':image1:ArraySize1_RBV'
         frame_type_pv = detector + ':cam1:FrameType'
         return acquire_pv, counter_pv, data_pv, sizex_pv, sizey_pv, frame_type_pv
-    
-    
-    def feed_data(self, logger, reportq, *args, **kwargs): #no_frames, detector, logger, sequence=None, *args):
+
+    def feed_data(self, logger, reportq, *args, **kwargs):  # no_frames, detector, logger, sequence=None, *args):
         """
         This function is called by a client to start the process.
 
         After all initial settings are completed, the method awaits for the area detector to start acquireing by polling
         the PV. When the area detective is active it starts processing.
-    
+
         Parameters
         ----------
         no_frames : int
@@ -332,7 +387,7 @@ class Feed:
 
         detector : str
             detector name
-    
+
         logger : Logger
             a Logger instance, recommended to use the same logger for feed and consuming process
 
@@ -340,10 +395,10 @@ class Feed:
             if int, the number is used to set number of frames to process,
             if list, take the number of frames from the list, and verify the sequence of data is correct during
             processing
-    
+
         *args : list
             a list of process specific arguments
-    
+
         Returns
         -------
         None
@@ -354,23 +409,25 @@ class Feed:
         test = True
 
         while test:
-            self.sizex = caget (sizex_pv)
-            self.sizey = caget (sizey_pv)
-            ack =  caget(acquire_pv)
+            self.sizex = caget(sizex_pv)
+            self.sizey = caget(sizey_pv)
+            ack = caget(acquire_pv)
             if ack == 1:
                 test = False
-                self.start_processes(counter_pv, data_pv, frame_type_pv, logger, reportq, *args, **kwargs)
+                self.start_processes(acquire_pv, counter_pv, data_pv, frame_type_pv, logger, reportq, *args, **kwargs)
             else:
                 time.sleep(.005)
 
         return caget(acquire_pv)
 
-
     def finish(self):
         self.process_dataq.put(adapter.pack_data(None, const.DATA_STATUS_END))
         self.done = True
         try:
-            self.callback_pv.clear_callbacks()
+            self.counter_pv.clear_callbacks()
+            self.acq_pv.clear_callbacks()
+            if not self.callback_pv is None:
+                self.callback_pv.clear_callbacks()
         except:
             pass
 

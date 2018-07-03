@@ -169,7 +169,7 @@ class FbServer_12(pvfb.FbServer):
         pvdb['STAT'] = {
                             'type': 'char',
                             'count' : 300,
-                            'value' : 'status'
+                            'value' : 'not acquireing'
                         }
 
         self.server.createPV(prefix, pvdb)

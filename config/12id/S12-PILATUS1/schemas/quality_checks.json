@@ -1,1 +1,1 @@
-{ "data" : ["sum", "frame_sat_pts", "frame_sat_cnt_rate"]}
+{ "data" : ["sum", "Npix_sat", "Npix_sat_cnt_rate"]}

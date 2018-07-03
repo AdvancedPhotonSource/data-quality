@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 from os.path import expanduser
 from configobj import ConfigObj
 import json
@@ -39,12 +40,12 @@ class Window(QtGui.QMainWindow):
 
         self.ui.det_name.returnPressed.connect(lambda: self.set_detector())
 
-        self.ui.frame_sum_ll.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sum_ll, 'sum','low_limit'))
-        self.ui.frame_sum_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sum_hl, 'sum','high_limit'))
-        self.ui.point_sat_hl.returnPressed.connect(lambda: self.set_limit(self.ui.point_sat_hl, 'point_sat','high_limit'))
-        self.ui.frame_sat_pts_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sat_pts_hl, 'frame_sat_pts','high_limit'))
-        self.ui.point_sat_rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.point_sat_rate_hl, 'point_sat_rate','high_limit'))
-        self.ui.frame_sat_pts_rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.frame_sat_pts_rate_hl, 'frame_sat_cnt_rate','high_limit'))
+        self.ui.sum_ll.returnPressed.connect(lambda: self.set_limit(self.ui.sum_ll, 'sum','low_limit'))
+        self.ui.sum_hl.returnPressed.connect(lambda: self.set_limit(self.ui.sum_hl, 'sum','high_limit'))
+        self.ui.pix_sat_hl.returnPressed.connect(lambda: self.set_limit(self.ui.pix_sat_hl, 'pix_sat','high_limit'))
+        self.ui.Npix_sat_hl.returnPressed.connect(lambda: self.set_limit(self.ui.Npix_sat_hl, 'Npix_sat','high_limit'))
+        self.ui.pix_sat_cnt_rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.pix_sat_cnt_rate_hl, 'pix_sat_cnt_rate','high_limit'))
+        self.ui.Npix_sat_cnt_rate_hl.returnPressed.connect(lambda: self.set_limit(self.ui.Npix_sat_cnt_rate_hl, 'Npix_sat_cnt_rate','high_limit'))
 
         self.setEpicsQualityFeedbackUpdate()
 
@@ -57,6 +58,13 @@ class Window(QtGui.QMainWindow):
         self.ui.statusBar.showMessage("verifier off")
 
         self.list_cnt = 0
+        self.ui.clear_list.clicked.connect(lambda: self.clear_list())
+        self.initialized = False
+        self.ack = False
+
+
+    def clear_list(self):
+        self.ui.list_failed.clear()
 
 
     def start_verifier(self):
@@ -68,8 +76,8 @@ class Window(QtGui.QMainWindow):
             )
         )
         self.verifier_on = 1
-        self.set_status_color('yellow')
-        msg = 'not acquireing'
+        self.set_status_color('orange')
+        msg = 'initializing'
 
         self.ui.statusBar.showMessage(msg)
 
@@ -110,12 +118,12 @@ class Window(QtGui.QMainWindow):
 
         with open(self.limits_file) as limitsfile:
             self.limits = json.loads(limitsfile.read())['data']
-            self.ui.frame_sum_ll.setText(str(self.limits['sum']['low_limit']))
-            self.ui.frame_sum_hl.setText(str(self.limits['sum']['high_limit']))
-            self.ui.point_sat_hl.setText(str(self.limits['point_sat']['high_limit']))
-            self.ui.frame_sat_pts_hl.setText(str(self.limits['frame_sat_pts']['high_limit']))
-            self.ui.point_sat_rate_hl.setText(str(self.limits['point_sat_rate']['high_limit']))
-            self.ui.frame_sat_pts_rate_hl.setText(str(self.limits['frame_sat_cnt_rate']['high_limit']))
+            self.ui.sum_ll.setText(str(self.limits['sum']['low_limit']))
+            self.ui.sum_hl.setText(str(self.limits['sum']['high_limit']))
+            self.ui.pix_sat_hl.setText(str(self.limits['pix_sat']['high_limit']))
+            self.ui.Npix_sat_hl.setText(str(self.limits['Npix_sat']['high_limit']))
+            self.ui.pix_sat_cnt_rate_hl.setText(str(self.limits['pix_sat_cnt_rate']['high_limit']))
+            self.ui.Npix_sat_cnt_rate_hl.setText(str(self.limits['Npix_sat_cnt_rate']['high_limit']))
         limitsfile.close()
 
 
@@ -157,28 +165,40 @@ class Window(QtGui.QMainWindow):
                 if msg is None:
                     return
                 failed = False
-                if msg.endswith('status'):
-                    pass
-                elif msg.endswith('pass'):
-                    self.set_status_color('green')
+                if msg.endswith('not acquireing'):
+                    self.set_status_color('yellow')
+                    self.ui.statusBar.showMessage(msg)
                 else:
-                    failed = True
-                    self.set_status_color('red')
-                self.ui.statusBar.showMessage(msg)
-                if failed:
-                    list_item = msg
-                    if self.list_cnt <= 4:
-                        self.ui.list_failed.insertItem(0, list_item)
-                        self.list_cnt = self.list_cnt + 1
+                    if msg.endswith('pass'):
+                        self.set_status_color('green')
                     else:
-                        self.ui.list_failed.takeItem(4)
-                        self.ui.list_failed.insertItem(0, list_item)
-            elif "Acquire" in pvname:
-                if self.verifier_on is 1:
-                    if int(float(char_value)) is 0:
+                        failed = True
+                        self.set_status_color('red')
+                    self.ui.statusBar.showMessage(msg)
+                    if failed:
+                        list_item = msg
+                        if self.list_cnt <= 4:
+                            self.ui.list_failed.insertItem(0, list_item)
+                            self.list_cnt = self.list_cnt + 1
+                        else:
+                            self.ui.list_failed.takeItem(4)
+                            self.ui.list_failed.insertItem(0, list_item)
+                    if not self.ack:
                         self.set_status_color('yellow')
                         msg = 'not acquireing'
                         self.ui.statusBar.showMessage(msg)
+
+            elif "Acquire" in pvname:
+                if self.verifier_on is 1:
+                    if int(float(char_value)) is 0:
+                        self.ack = False
+                        if not self.initialized:
+                            pass
+                        self.set_status_color('yellow')
+                        msg = 'not acquireing'
+                        self.ui.statusBar.showMessage(msg)
+                    else:
+                        self.ack = True
         else:
             self.ui.statusBar.showMessage("ver pv name not defined")
 
@@ -193,6 +213,9 @@ class Window(QtGui.QMainWindow):
         elif color is 'yellow':
             self.ui.statusBar.setStyleSheet(
                 "QStatusBar{padding-left:8px;background:rgba(255,255,0,120);color:black;font-weight:bold;}")
+        elif color is 'orange':
+            self.ui.statusBar.setStyleSheet(
+                "QStatusBar{padding-left:8px;background:rgba(255,125,0,120);color:black;font-weight:bold;}")
         elif color is 'none':
             self.ui.statusBar.setStyleSheet(
                 "QStatusBar{padding-left:8px;background:rgba(0,0,0,0);color:black;font-weight:bold;}")

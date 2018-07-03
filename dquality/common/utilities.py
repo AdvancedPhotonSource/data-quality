@@ -227,7 +227,7 @@ def get_logger(name, conf):
         # try absolute path
         lfile = conf['log_file']
     except KeyError:
-        print('config warning: log file is not configured, logging to default.log')
+        print('info: logging to default.log')
         lfile = 'default.log'
     except:
         print('config error: log file directory does not exist')

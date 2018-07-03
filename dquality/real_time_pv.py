@@ -79,125 +79,125 @@ __all__ = ['init',
            'RT.finish']
 
 
-def init(config):
-    """
-    This function initializes variables according to configuration.
-
-    It gets values from the configuration file, evaluates and processes the values. If mandatory parameter is missing,
-    the script logs an error and exits.
-
-    Parameters
-    ----------
-    config : str
-        configuration file name, including path
-
-    Returns
-    -------
-    logger : Logger
-        logger instance
-
-    limits : dictionary
-        a dictionary containing limit values read from the configured 'limit' file
-
-    quality_checks : dict
-        a dictionary containing quality check functions ids
-
-    feedback : list
-        a list of strings defining real time feedback of quality checks errors. Currently supporting 'PV', 'log', and
-        'console'
-
-    report_type : int
-        report type; currently supporting 'none', 'error', and 'full'
-
-    consumers : dict
-        a dictionary parsed from json file representing consumers
-
-    """
-    conf = utils.get_config(config)
-    if conf is None:
-        print ('configuration file is missing')
-        exit(-1)
-
-    logger = utils.get_logger(__name__, conf)
-
-    feed_args = []
-    feed_kwargs = {}
-
-    limitsfile = utils.get_file(conf, 'limits', logger)
-    if limitsfile is None:
-        sys.exit(-1)
-
-    with open(limitsfile) as limits_file:
-        limits = json.loads(limits_file.read())
-    feed_args.append(limits)
-
-    qcfile = utils.get_file(conf, 'quality_checks', logger)
-    if qcfile is None:
-        sys.exit(-1)
-
-    with open(qcfile) as qc_file:
-        dict = json.loads(qc_file.read())
-    feed_args.append(dict)
-
-    try:
-        no_frames = int(conf['no_frames'])
-    except KeyError:
-        print ('no_frames parameter not configured. Continuous mode.')
-        no_frames = -1
-    feed_args.append(no_frames)
-
-    try:
-        callback_pv = conf['callback_pv']
-        feed_kwargs['callback_pv'] = callback_pv
-    except KeyError:
-        pass
-
-    try:
-        detector = conf['detector']
-        feed_kwargs['detector'] = detector
-    except KeyError:
-        print ('detector parameter not configured.')
-        sys.exit(-1)
-
-    try:
-        consumers = conf['zmq_snd_port']
-        feed_kwargs['consumers'] = consumers
-    except KeyError:
-        pass
-
-    try:
-        aggregate_limit = int(conf['aggregate_limit'])
-    except KeyError:
-        aggregate_limit = no_frames
-    feed_kwargs['aggregate_limit'] = aggregate_limit
-
-    try:
-        feedback = conf['feedback_type']
-        if len(feedback) == 0:
-            feedback = None
-    except KeyError:
-        feedback = None
-
-    try:
-        decor_conf = conf['decor']
-        decor_map = {}
-        for entry in decor_conf:
-            entry = entry.split('>')
-            decor_map[entry[0].strip()] = entry[1].strip()
-        if len(decor_map) == 0:
-            decor_map = None
-    except KeyError:
-        decor_map = None
-
-    try:
-        report_type = conf['report_type']
-    except KeyError:
-        report_type = const.REPORT_FULL
-
-    return feed_args, feed_kwargs, feedback, decor_map, logger, report_type
-
-
 class RT:
+
+    def init(self, config):
+        """
+        This function initializes variables according to configuration.
+
+        It gets values from the configuration file, evaluates and processes the values. If mandatory parameter is missing,
+        the script logs an error and exits.
+
+        Parameters
+        ----------
+        config : str
+            configuration file name, including path
+
+        Returns
+        -------
+        logger : Logger
+            logger instance
+
+        limits : dictionary
+            a dictionary containing limit values read from the configured 'limit' file
+
+        quality_checks : dict
+            a dictionary containing quality check functions ids
+
+        feedback : list
+            a list of strings defining real time feedback of quality checks errors. Currently supporting 'PV', 'log', and
+            'console'
+
+        report_type : int
+            report type; currently supporting 'none', 'error', and 'full'
+
+        consumers : dict
+            a dictionary parsed from json file representing consumers
+
+        """
+        conf = utils.get_config(config)
+        if conf is None:
+            print ('configuration file is missing')
+            exit(-1)
+
+        logger = utils.get_logger(__name__, conf)
+
+        feed_args = []
+        feed_kwargs = {}
+
+        limitsfile = utils.get_file(conf, 'limits', logger)
+        if limitsfile is None:
+            sys.exit(-1)
+
+        with open(limitsfile) as limits_file:
+            limits = json.loads(limits_file.read())
+        feed_args.append(limits)
+
+        qcfile = utils.get_file(conf, 'quality_checks', logger)
+        if qcfile is None:
+            sys.exit(-1)
+
+        with open(qcfile) as qc_file:
+            dict = json.loads(qc_file.read())
+        feed_args.append(dict)
+
+        try:
+            no_frames = int(conf['no_frames'])
+        except KeyError:
+            print ('no_frames parameter not configured. Continuous mode.')
+            no_frames = -1
+        feed_args.append(no_frames)
+
+        try:
+            callback_pv = conf['callback_pv']
+            feed_kwargs['callback_pv'] = callback_pv
+        except KeyError:
+            pass
+
+        try:
+            detector = conf['detector']
+            feed_kwargs['detector'] = detector
+        except KeyError:
+            print ('detector parameter not configured.')
+            sys.exit(-1)
+
+        try:
+            consumers = conf['zmq_snd_port']
+            feed_kwargs['consumers'] = consumers
+        except KeyError:
+            pass
+
+        try:
+            aggregate_limit = int(conf['aggregate_limit'])
+        except KeyError:
+            aggregate_limit = no_frames
+        feed_kwargs['aggregate_limit'] = aggregate_limit
+
+        try:
+            feedback = conf['feedback_type']
+            if len(feedback) == 0:
+                feedback = None
+        except KeyError:
+            feedback = None
+
+        try:
+            decor_conf = conf['decor']
+            decor_map = {}
+            for entry in decor_conf:
+                entry = entry.split('>')
+                decor_map[entry[0].strip()] = entry[1].strip()
+            if len(decor_map) == 0:
+                decor_map = None
+        except KeyError:
+            decor_map = None
+
+        try:
+            report_type = conf['report_type']
+        except KeyError:
+            report_type = const.REPORT_FULL
+
+        return feed_args, feed_kwargs, feedback, decor_map, logger, report_type
+
 
     def verify(self, config, report_file=None, sequence = None):
         """
@@ -223,7 +223,7 @@ class RT:
         boolean
 
         """
-        feed_args, feed_kwargs, feedback, decor_map, logger, report_type = init(config)
+        feed_args, feed_kwargs, feedback, decor_map, logger, report_type = self.init(config)
 
         # init the pv feedback
         if not feedback is None:
@@ -250,7 +250,6 @@ class RT:
         ack = self.feed.feed_data(logger, reportq, *feed_args, **feed_kwargs)
         if ack == 1:
             bad_indexes = {}
-
             aggregate = reportq.get()
 
             if report_file is not None:
@@ -271,4 +270,5 @@ class RT:
             self.p.terminate()
         except:
             pass
+        self.feed = None
 
