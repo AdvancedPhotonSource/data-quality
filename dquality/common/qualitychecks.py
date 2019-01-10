@@ -202,11 +202,11 @@ def sum(**kws):
 
 def Npix_sat_cnt_rate(**kws):
     """
-    This method validates a sum of all intensities value of the frame.
+    This method validates saturation rate in a frame.
 
-    This function calculates sums the pixels intensity in the given frame. The result is compared with
-    threshhold values to determine the quality of the data. The result, comparison result, index, and quality_id values
-    are saved in a new Result object.
+    This function calculates the saturation rate in the given frame for all pixels. All pixels for which the saturation rate
+    exceeds limit are summed. The nuber of pixels is compared with limit value to determine the quality of the data.
+    The result, comparison result, index, and quality_id values are saved in a new Result object. 
 
     Parameters
     ----------
@@ -221,15 +221,6 @@ def Npix_sat_cnt_rate(**kws):
     result : Result
         a Result object
     """
-    # limits = kws['limits']
-    # data = kws['data']
-    #
-    # this_limits = limits['rate_sat']
-    # acq_time = data.rate_sat
-    # res = data.slice.sum()/acq_time
-    # result = find_result(res, 'rate_sat', this_limits)
-    # return result
-    #
     limits = kws['limits']
     data = kws['data']
 
