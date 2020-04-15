@@ -62,6 +62,7 @@ __all__ = ['find_result',
            'mean',
            'st_dev',
            'sum',
+           'diff_sat',
            'Npix_sat_cnt_rate',
            'Npix_sat',
            'stat_mean',
@@ -200,6 +201,44 @@ def sum(**kws):
     return result
 
 
+def diff_sat(**kws):
+    """
+    This method validates a sum of all intensities value of the frame.
+
+    This function calculates sums the pixels intensity in the given frame. The result is compared with
+    threshhold values to determine the quality of the data. The result, comparison result, index, and quality_id values
+    are saved in a new Result object.
+
+    Parameters
+    ----------
+    data : Data
+        data instance that includes slice 2D data
+
+    limits : dictionary
+        a dictionary containing threshold values for the evaluated data type
+
+    Returns
+    -------
+    result : Result
+        a Result object
+    """
+    limits = kws['limits']
+    data = kws['data']
+    last_frame = kws['last_frame']
+
+    diff = data.slice - last_frame
+
+    # find how many pixels have intensity exceeding the point saturation limit
+    sat_high = (limits['pix_sat'])['high_limit']
+    points = (diff > sat_high).sum()
+
+    # check if the number of saturated points are within limit
+    this_limits = limits['diff_sat']
+    result = find_result(points, 'diff_sat', this_limits)
+
+    return result
+
+
 def Npix_sat_cnt_rate(**kws):
     """
     This method validates saturation rate in a frame.
@@ -270,7 +309,7 @@ def Npix_sat(**kws):
     return result
 
 
-def stat_mean(**kws):
+def stat_mean( **kws):
     """
     This is one of the statistical validation methods.
 
@@ -366,7 +405,7 @@ function_mapper = {'mean' : mean,
                    'stat_mean' : stat_mean,
                    'acc_sat' : acc_sat}
 
-def run_quality_checks(data, index, aggregate, limits, quality_checks):
+def run_quality_checks(data, index, limits, quality_checks, **kwargs):
     """
     This function runs validation methods applicable to the frame data type and enqueues results.
 
@@ -397,12 +436,14 @@ def run_quality_checks(data, index, aggregate, limits, quality_checks):
     -------
     none
     """
-    #quality_checks.sort()
     results_dict = {}
     failed = False
+    kwargs['limits'] = limits
+    kwargs['data'] = data
+
     for qc in quality_checks:
         function = function_mapper[qc]
-        result = function(limits=limits, data=data, aggregate=aggregate, results=results_dict)
+        result = function(limits, data, kwargs)
 
         results_dict[qc] = result
         if result.error != 0:

@@ -1,0 +1,14 @@
+{
+  "data": {
+    "diff_sat": {
+      "high_limit": 20
+    },
+    "sum": {
+      "high_limit": 100000,
+      "low_limit": -10000000
+    },
+    "pix_sat": {
+      "high_limit": 100000
+    }
+  }
+}
