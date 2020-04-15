@@ -404,7 +404,9 @@ function_mapper = {'mean' : mean,
                    'Npix_sat_cnt_rate': Npix_sat_cnt_rate,
                    'sum': sum,
                    'stat_mean' : stat_mean,
-                   'acc_sat' : acc_sat}
+                   'acc_sat' : acc_sat,
+                   'diff_sat' : diff_sat
+                   }
 
 def run_quality_checks(data, index, limits, quality_checks, **kwargs):
     """
