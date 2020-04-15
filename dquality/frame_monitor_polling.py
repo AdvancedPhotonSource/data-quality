@@ -499,14 +499,14 @@ def verify(conf, folder, num_files):
                 notifier.stop_observing()
                 break
             else:
-                file_count += 1
                 frame = file_reader.get_frame(file)
                 data = containers.Data(const.DATA_STATUS_DATA, frame, 'data')
                 if file_type == const.FILE_TYPE_TIF:
-                    frame_results = ver.run_quality_checks(data, limits, quality_checks, last_frame=last_frame)
+                    frame_results = ver.run_quality_checks(data, file_count, limits, quality_checks, last_frame=last_frame)
                     last_frame = frame
                 else: # generic use
                     frame_results = ver.run_quality_checks(data, limits, quality_checks)
+                file_count += 1
 
                 if frame_results.failed:
                     s_result = 'failed'

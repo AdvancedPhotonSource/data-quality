@@ -225,7 +225,8 @@ def diff_sat(**kws):
     limits = kws['limits']
     data = kws['data']
     last_frame = kws['last_frame']
-
+    if last_frame is None:  # evaluating the first slice
+        last_frame = data.slice
     diff = data.slice - last_frame
 
     # find how many pixels have intensity exceeding the point saturation limit
