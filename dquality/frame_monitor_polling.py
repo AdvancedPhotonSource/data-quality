@@ -60,6 +60,7 @@ The results will be sent to an EPICS PV (printed on screen for now).
 
 import os
 import sys
+import argparse
 from multiprocessing import Queue
 import json
 import dquality.common.utilities as utils
@@ -517,4 +518,17 @@ def verify(conf, folder, num_files):
         if file_count == num_files:
             interrupted = True
             notifier.stop_observing()
+
+
+def main(arg):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("conf", help="configuration dir")
+    parser.add_argument("folder", help="directory to monitor")
+    parser.add_argument("num_files", help="number of files to monitor")
+    args = parser.parse_args()
+    verify(args.conf, args.folder, args.num_files)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
