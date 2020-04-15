@@ -424,7 +424,8 @@ def get_quality_checks(dict):
     for type in dict:
         list = []
         for qc in dict[type]:
-            list.append(const.get_id(qc))
+            list.append(qc)
+#            list.append(const.get_id(qc))
         quality_checks[type] = list
 
     return quality_checks

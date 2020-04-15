@@ -75,11 +75,8 @@ class File_reader:
 
 
 class Tif_fr(File_reader):
-    def __init__(self, filename):
-        self.filename = filename
 
-    def get_frame(self):
-        filename = self.filename
+    def get_frame(self, filename):
         image = None
         File = open(filename, 'rb')
         dataType = 5
