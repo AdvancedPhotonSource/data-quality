@@ -441,13 +441,11 @@ def run_quality_checks(data, index, limits, quality_checks, **kwargs):
     """
     results_dict = {}
     failed = False
-    args = {'limits' : limits, 'data' : data}
-    for arg in kwargs:
-        args[arg] = kwargs[arg]
-
+    kwargs['limits'] = limits
+    kwargs['data'] = data
     for qc in quality_checks:
         function = function_mapper[qc]
-        result = function(limits, data, args)
+        result = function(**kwargs)
 
         results_dict[qc] = result
         if result.error != 0:

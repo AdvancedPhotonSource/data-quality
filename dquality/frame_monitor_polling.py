@@ -502,7 +502,7 @@ def verify(conf, folder, num_files):
                 frame = file_reader.get_frame(file)
                 data = containers.Data(const.DATA_STATUS_DATA, frame, 'data')
                 if file_type == const.FILE_TYPE_TIF:
-                    frame_results = ver.run_quality_checks(data, file_count, limits, quality_checks, last_frame=last_frame)
+                    frame_results = ver.run_quality_checks(data, file_count, limits[data.type], quality_checks[data.type], last_frame=last_frame)
                     last_frame = frame
                 else: # generic use
                     frame_results = ver.run_quality_checks(data, limits, quality_checks)
@@ -514,8 +514,7 @@ def verify(conf, folder, num_files):
                     s_result = 'passed'
                     
                 print ('evaluated file ' + file + ' with result ' + s_result)
-
-        if file_count == num_files:
+        if int(num_files) != -1 and file_count >= int(num_files):
             interrupted = True
             notifier.stop_observing()
 
