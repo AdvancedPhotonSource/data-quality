@@ -51,7 +51,6 @@ This file is a suite of utility functions.
 
 """
 import os
-import h5py
 import struct as st
 import logging
 from configobj import ConfigObj
@@ -299,6 +298,8 @@ def get_file(conf, config_name, logger, log_error=True):
 
 
 def get_data_hdf(file):
+    import h5py
+
     """
     This function takes a file of HDF format, traverses through tags,
     finds "shape" data sets and returns the sets in a dictionary.
