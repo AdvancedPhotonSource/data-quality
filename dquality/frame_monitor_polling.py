@@ -427,14 +427,11 @@ def init(config):
     except KeyError:
         report_dir = None
 
-    consumersfile = utils.get_file(conf, 'consumers', logger, False)
-    if consumersfile is None:
-        consumers = None
-    else:
-        with open(consumersfile) as consumers_file:
-            consumers = json.loads(consumers_file.read())
-
-    return logger, data_tags, limits, quality_checks, extensions, file_type, report_type, report_dir, consumers
+    try:
+        feedback = conf['feedback_type']
+    except KeyError:
+        feedback = []
+    return logger, data_tags, limits, quality_checks, extensions, file_type, report_type, report_dir, feedback
 
 
 def verify(conf, folder, num_files):
@@ -471,7 +468,7 @@ def verify(conf, folder, num_files):
     bad_indexes : Dict
         A dictionary containing indexes of slices that did not pass quality check. The key is a file.
     """
-    logger, data_tags, limits, quality_checks, extensions, file_type, report_type, report_dir, consumers = init(conf)
+    logger, data_tags, limits, quality_checks, extensions, file_type, report_type, report_dir, feedback = init(conf)
     if not os.path.isdir(folder):
         print ('parameter error: directory ' + folder + ' does not exist')
         sys.exit(0)
@@ -512,8 +509,12 @@ def verify(conf, folder, num_files):
                     s_result = 'failed'
                 else:
                     s_result = 'passed'
-                    
-                print ('evaluated file ' + file + ' with result ' + s_result)
+
+                if 'console' in feedback:
+                    print ('evaluated file ' + file + ' with result ' + s_result)
+                if 'log' in feedback:
+                    logger.info('evaluated file ' + file + ' with result ' + s_result)
+
         if int(num_files) != -1 and file_count >= int(num_files):
             interrupted = True
             notifier.stop_observing()
